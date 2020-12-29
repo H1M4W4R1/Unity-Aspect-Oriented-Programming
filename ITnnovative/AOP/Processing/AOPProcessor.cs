@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using ITnnovative.AOP.Attributes.Event;
 using ITnnovative.AOP.Attributes.Method;
 using ITnnovative.AOP.Attributes.Property;
@@ -269,18 +270,28 @@ namespace ITnnovative.AOP.Processing
             // Return value
             return arguments.returnValue;
         }
-        
+
         public static object OnMethod(object instance, Type type, string methodName, object[] args)
         {
             // Create arguments for aspects
             var arguments = new MethodExecutionArguments();
-            var method = type?.GetMethod(methodName + APPENDIX);
-            var containingMethod = type?.GetMethod(methodName);
+
+            // TODO: Fix for generic methods, method<T>(int var) makes variable null
+            var typeArray = new List<Type>();
+            foreach (var o in args)
+            {
+                if(o != null)
+                    typeArray.Add(o.GetType());
+            }
             
+            var method = type?.GetMethod(methodName + APPENDIX, typeArray);
+            var containingMethod = type?.GetMethod(methodName, typeArray);
+
             // Load data
             arguments.method = method;
+            arguments.rootMethod = containingMethod;
             var mParam = method.GetParameters();
-            
+
             for (var index = 0; index < args.Length; index++)
             {
                 var pValue = args[index];
@@ -311,31 +322,32 @@ namespace ITnnovative.AOP.Processing
             {
                 ((IMethodExitAspect) aspect).OnMethodExit(arguments);
             }
-
+ 
             // If had error throw it again after processing
             if (arguments.HasErrored)
             {
                 // Invoke event if exists
                 arguments.onException?.Invoke(arguments.exception);
-                
+
                 // Invoke exception aspects
                 var exceptionAspects = containingMethod.GetCustomAttributes(typeof(IMethodExceptionThrownAspect), true);
                 foreach (var aspect in exceptionAspects)
                 {
                     ((IMethodExceptionThrownAspect) aspect).OnExceptionThrown(arguments.exception, arguments);
                 }
-                
+
                 // Rethrow exception
                 // ReSharper disable once PossibleNullReferenceException, already checked using HasErrored
                 throw arguments.exception;
             }
-            
+
+
             // Return value
             return arguments.returnValue;
         }
 
-  
-  
-        
+
+
+
     }
 }

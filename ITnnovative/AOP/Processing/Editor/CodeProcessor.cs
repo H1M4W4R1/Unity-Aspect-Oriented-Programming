@@ -47,7 +47,13 @@ namespace ITnnovative.AOP.Processing.Editor
                         {
                             // Register AOP Processor by encapsulating method
                             if (HasAttributeOfType<IMethodAspect>(method))
-                            {
+                            { 
+                                if (method.HasGenericParameters)
+                                {
+                                    Debug.LogError("[Unity AOP] Generic methods are not supported.");
+                                    continue;
+                                }
+
                                 MarkAsProcessed(module, method);
                                 EncapsulateMethod(assembly, module, type, method);
                             }
@@ -313,7 +319,7 @@ namespace ITnnovative.AOP.Processing.Editor
             
             Debug.Log("[Unity AOP] Weaving assemblies...");
             WeaveAssembly(unityDefaultAssembly);
-      
+        
         }
 
         /// <summary>

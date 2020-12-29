@@ -9,9 +9,14 @@ namespace ITnnovative.AOP.Processing.Exectution.Arguments
     {
 
         /// <summary>
-        /// Method that is executed, includes DeclaringType information, so it's ommited
+        /// Method that is executed (original method with custom name), includes DeclaringType information, so it's ommited
         /// </summary>
         public MethodInfo method;
+        
+        /// <summary>
+        /// Method that is root executor - original method without custom name
+        /// </summary>
+        public MethodInfo rootMethod;
         
         /// <summary>
         /// Arguments for this method
@@ -22,6 +27,8 @@ namespace ITnnovative.AOP.Processing.Exectution.Arguments
         /// Return value
         /// </summary>
         public object returnValue;
+
+      
 
         /// <summary>
         /// Gets argument for method execution
