@@ -27,7 +27,21 @@ namespace ITnnovative.AOP.Sample.Aspects
             
             // Create list of arguments for method
             var paramList = new StringBuilder();
+            var sbGeneric = new StringBuilder();
             var num = 0;
+            
+            // Generate generic string
+            foreach (var genericArgument in args.method.GetGenericArguments())
+            {
+                if (num > 0)
+                    sbGeneric.Append(", ");
+                sbGeneric.Append(genericArgument);
+                num++;
+            }
+
+            num = 0;
+            
+            // Generate param string
             args.arguments.ForEach(a =>
             {
                 if(num > 0)
@@ -36,7 +50,7 @@ namespace ITnnovative.AOP.Sample.Aspects
                 num++;
             });
             Debug.Log("[MethodTimeLogger] Method '" +
-                      args.rootMethod.Name + "(" + paramList + ")' took " + sw.ElapsedMilliseconds + "ms.");
+                      args.rootMethod.Name + (!string.IsNullOrEmpty(sbGeneric.ToString()) ? "<" + sbGeneric + ">" : "") + "(" + paramList + ")' took " + sw.ElapsedMilliseconds + "ms.");
         }
 
         public void OnMethodEnter(MethodExecutionArguments args)

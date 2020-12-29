@@ -22,16 +22,22 @@ namespace ITnnovative.AOP.Sample.Objects
         }
 
         [MethodTimeLogger]
+        [ContextMenu("TestMethod")]
         public void TestMethod()
         {
             Thread.Sleep(50);
             TestMethod(100);
-        }
+        } 
+
 
         [MethodTimeLogger]
-        public void TestMethod(int sleepTime)
+        public void TestMethod<T>(T sleepTime)
         {
-            Thread.Sleep(sleepTime);
+            Debug.Log("Sleeping for: " + sleepTime); 
+            if (sleepTime is int)
+            {
+                Thread.Sleep(Convert.ToInt32(sleepTime));
+            }
         }
     }
 }

@@ -276,22 +276,33 @@ namespace ITnnovative.AOP.Processing
             // Create arguments for aspects
             var arguments = new MethodExecutionArguments();
 
-            // TODO: Fix for generic methods, method<T>(int var) makes variable null
+            // Get types for args
             var typeArray = new List<Type>();
             foreach (var o in args)
             {
-                if(o != null)
+                if (o != null)
+                {
                     typeArray.Add(o.GetType());
+                }
             }
+   
             
-            var method = type?.GetMethod(methodName + APPENDIX, typeArray);
-            var containingMethod = type?.GetMethod(methodName, typeArray);
-
+            // Get methods and generate generic versions for invocation
+            var genericTypes = null as List<Type>;
+            var method = type?.GetMethod(methodName + APPENDIX, typeArray, out genericTypes);
+            if(genericTypes.Count > 0)
+                method = method.MakeGenericMethod(genericTypes.ToArray());
+            
+            var containingMethod = type?.GetMethod(methodName, typeArray, out genericTypes);
+            if(genericTypes.Count > 0)
+                containingMethod = containingMethod.MakeGenericMethod(genericTypes.ToArray());
+            
             // Load data
             arguments.method = method;
             arguments.rootMethod = containingMethod;
             var mParam = method.GetParameters();
 
+            // Generate arguments for execution args
             for (var index = 0; index < args.Length; index++)
             {
                 var pValue = args[index];
@@ -309,7 +320,8 @@ namespace ITnnovative.AOP.Processing
 
             try
             {
-                arguments.returnValue = method?.Invoke(instance, args);
+                // TODO: generic methods?
+                arguments.returnValue = method.Invoke(instance, args);
             }
             catch (Exception ex)
             {

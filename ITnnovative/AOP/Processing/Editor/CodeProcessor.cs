@@ -48,12 +48,6 @@ namespace ITnnovative.AOP.Processing.Editor
                             // Register AOP Processor by encapsulating method
                             if (HasAttributeOfType<IMethodAspect>(method))
                             { 
-                                if (method.HasGenericParameters)
-                                {
-                                    Debug.LogError("[Unity AOP] Generic methods are not supported.");
-                                    continue;
-                                }
-
                                 MarkAsProcessed(module, method);
                                 EncapsulateMethod(assembly, module, type, method);
                             }
@@ -224,16 +218,17 @@ namespace ITnnovative.AOP.Processing.Editor
             newMethodBody.Add(Instruction.Create(OpCodes.Ldstr, mName));
             newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, method.Parameters.Count));
             newMethodBody.Add(Instruction.Create(OpCodes.Newarr, module.ImportReference(typeof(object))));
-            
+
             for (var num = 0; num < method.Parameters.Count; num++)
             {
                 var param = method.Parameters[num];
-                
+                var pType = param.ParameterType;
+
                 newMethodBody.Add(Instruction.Create(OpCodes.Dup));
                 newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, num));
                 newMethodBody.Add(Instruction.Create(OpCodes.Ldarg, param));
-                if(param.ParameterType.IsValueType)
-                    newMethodBody.Add(Instruction.Create(OpCodes.Box, param.ParameterType));
+                if(param.ParameterType.IsValueType || param.ParameterType.IsGenericParameter)
+                    newMethodBody.Add(Instruction.Create(OpCodes.Box, pType));
                 newMethodBody.Add(Instruction.Create(OpCodes.Stelem_Ref));
             }
             
@@ -248,7 +243,7 @@ namespace ITnnovative.AOP.Processing.Editor
                 newMethodBody.Add(Instruction.Create(OpCodes.Call, typeof(AOPProcessor).GetMonoMethod(module, 
                     overrideMethod)));
             }
-
+ 
             if (method.ReturnType.FullName != typeof(void).FullName)
             {
                 if (method.ReturnType.IsValueType)
@@ -267,7 +262,18 @@ namespace ITnnovative.AOP.Processing.Editor
             var internalMethod = new MethodDefinition(method.Name + AOPProcessor.APPENDIX, method.Attributes, method.ReturnType);
             foreach (var param in method.Parameters)
             {
-                internalMethod.Parameters.Add(new ParameterDefinition(param.Name, param.Attributes, param.ParameterType));
+                var newParam = new ParameterDefinition(param.Name, param.Attributes, param.ParameterType);
+                newParam.HasDefault = false;
+                newParam.IsOptional = false; 
+                internalMethod.Parameters
+                    .Add(newParam);
+            }  
+
+            // Copy generic parameters
+            foreach (var genericParameter in method.GenericParameters)
+            {
+                internalMethod.GenericParameters
+                    .Add(new GenericParameter(genericParameter.Name, internalMethod));
             }
             
             var bodyClone = new MethodBody(method);

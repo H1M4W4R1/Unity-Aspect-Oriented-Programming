@@ -13,8 +13,10 @@ namespace ITnnovative.AOP.Processing.Exectution
         /// <summary>
         /// Gets method from type using parameters
         /// </summary>
-        public static MethodInfo GetMethod(this Type t, string methodName, List<Type> paramTypes)
+        public static MethodInfo GetMethod(this Type t, string methodName, List<Type> paramTypes, out List<Type> genericTypes)
         {
+            genericTypes = new List<Type>();
+            
             var pTypes = paramTypes?.ToArray();
             var method = t.GetMethod(methodName, pTypes);
 
@@ -24,23 +26,28 @@ namespace ITnnovative.AOP.Processing.Exectution
                 var methods = t.GetMethods((BindingFlags) int.MaxValue);
                 foreach (var m in methods)
                 {
+                    genericTypes.Clear();
                     // If name differs, continue
                     if (m.Name != methodName) continue;
 
                     // Get params 
                     var methodParams = m.GetParameters();
+ 
+                    // Ignore if params length does not match
+                    if (methodParams.Length != pTypes.Length) continue;
+                    
                     for (var index = 0; index < methodParams.Length; index++)
                     {
                         var param = methodParams[index];
                         // Check if params match
                         if (param.ParameterType != pTypes[index])
                         {
-                            // Check if is generic-based parameter
-                            if (!param.ParameterType.Name.StartsWith("!!"))
-                            {
-                                // If not, then wrong param is provided, check next method
+                            // Compare type to arguments (check if is generic)
+                            if(!param.ParameterType.IsGenericParameter)
                                 goto continue_job;
-                            }
+
+                            // Register generic type
+                            genericTypes.Add(pTypes[index]);
                         }
                     }
 
