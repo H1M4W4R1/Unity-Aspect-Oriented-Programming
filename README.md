@@ -48,7 +48,7 @@ It's simple.
 5. Profit
 > It's recommended to use [AttributeUsage] on aspects to limit it to proper members.
 
-## Can I move variables between aspects? For example MethodEnter i MethodExit?
+## Can I move variables between aspects? For example MethodEnter & MethodExit?
 Yes, you should use Variables. All arguments used in Aspects inherit BaseExecutionArgs. Inside you've methods:
 * `AddVariable(string name, object value)` - which adds variable to local memory of aspect call
 * `GetVariable<T>(string name)` - which gets variable using name, if none returns default
