@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
-using ITnnovative.AOP.Processing.Exectution.Arguments.Enums;
+using ITnnovative.AOP.Processing.Execution.Arguments.Enums;
 
-namespace ITnnovative.AOP.Processing.Exectution.Arguments
+namespace ITnnovative.AOP.Processing.Execution.Arguments
 {
     public class EventExecutionArguments : BaseExecutionArgs
     {

@@ -1,9 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace ITnnovative.AOP.Processing.Exectution.Arguments
+namespace ITnnovative.AOP.Processing.Execution.Arguments
 {
     public class MethodExecutionArguments : BaseExecutionArgs
     {

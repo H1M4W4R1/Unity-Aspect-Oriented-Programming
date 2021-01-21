@@ -1,4 +1,4 @@
-﻿namespace ITnnovative.AOP.Processing.Exectution.Arguments
+﻿namespace ITnnovative.AOP.Processing.Execution.Arguments
 {
     public class MethodArgument
     {

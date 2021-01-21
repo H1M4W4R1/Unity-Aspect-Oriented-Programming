@@ -1,4 +1,4 @@
-﻿namespace ITnnovative.AOP.Processing.Exectution.Arguments.Enums
+﻿namespace ITnnovative.AOP.Processing.Execution.Arguments.Enums
 {
     public enum EventExecutionType
     {

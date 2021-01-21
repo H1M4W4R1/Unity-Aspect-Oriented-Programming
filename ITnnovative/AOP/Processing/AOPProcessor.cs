@@ -4,9 +4,9 @@ using System.Linq;
 using ITnnovative.AOP.Attributes.Event;
 using ITnnovative.AOP.Attributes.Method;
 using ITnnovative.AOP.Attributes.Property;
-using ITnnovative.AOP.Processing.Exectution;
-using ITnnovative.AOP.Processing.Exectution.Arguments;
-using ITnnovative.AOP.Processing.Exectution.Arguments.Enums;
+using ITnnovative.AOP.Processing.Execution;
+using ITnnovative.AOP.Processing.Execution.Arguments;
+using ITnnovative.AOP.Processing.Execution.Arguments.Enums;
 using UnityEngine;
 
 namespace ITnnovative.AOP.Processing
@@ -68,15 +68,18 @@ namespace ITnnovative.AOP.Processing
                 ((IEventBeforeListenerAddedAspect) aspect).BeforeEventListenerAdded(arguments);
             }
 
-            try
+            if (!arguments.HasErrored)
             {
-                method.Invoke(instance, args);
+                try
+                {
+                    method.Invoke(instance, args);
+                }
+                catch (Exception ex)
+                {
+                    arguments.exception = ex.InnerException;
+                }
             }
-            catch(Exception ex)
-            {
-                arguments.exception = ex.InnerException;
-            }
-            
+
             // Get start aspects and process them
             var exitAspects = evt.GetCustomAttributes(typeof(IEventAfterListenerAddedAspect), true);
             foreach (var aspect in exitAspects)
@@ -124,15 +127,18 @@ namespace ITnnovative.AOP.Processing
                 ((IEventBeforeListenerRemovedAspect) aspect).BeforeEventListenerRemoved(arguments);
             }
 
-            try
+            if (!arguments.HasErrored)
             {
-                method.Invoke(instance, args);
+                try
+                {
+                    method.Invoke(instance, args);
+                }
+                catch (Exception ex)
+                {
+                    arguments.exception = ex.InnerException;
+                }
             }
-            catch(Exception ex)
-            {
-                arguments.exception = ex.InnerException;
-            }
-            
+
             // Get start aspects and process them
             var exitAspects = evt.GetCustomAttributes(typeof(IEventAfterListenerRemovedAspect), true);
             foreach (var aspect in exitAspects)
@@ -178,15 +184,18 @@ namespace ITnnovative.AOP.Processing
                 ((IPropertyGetEnterAspect) aspect).OnPropertyGetEnter(arguments);
             }
 
-            try
+            if (!arguments.HasErrored)
             {
-                arguments.returnValue = method.Invoke(instance, args);
+                try
+                {
+                    arguments.returnValue = method.Invoke(instance, args);
+                }
+                catch (Exception ex)
+                {
+                    arguments.exception = ex.InnerException;
+                }
             }
-            catch(Exception ex)
-            {
-                arguments.exception = ex.InnerException;
-            }
-            
+
             // Get start aspects and process them
             var exitAspects = property.GetCustomAttributes(typeof(IPropertyGetExitAspect), true);
             foreach (var aspect in exitAspects)
@@ -233,15 +242,18 @@ namespace ITnnovative.AOP.Processing
                 ((IPropertySetEnterAspect) aspect).OnPropertySetEnter(arguments);
             }
 
-            try
+            if (!arguments.HasErrored)
             {
-                arguments.returnValue = method.Invoke(instance, args);
+                try
+                {
+                    arguments.returnValue = method.Invoke(instance, args);
+                }
+                catch (Exception ex)
+                {
+                    arguments.exception = ex.InnerException;
+                }
             }
-            catch(Exception ex)
-            {
-                arguments.exception = ex.InnerException;
-            }
-            
+
             // Get start aspects and process them
             var exitAspects = property.GetCustomAttributes(typeof(IPropertySetExitAspect), true);
             foreach (var aspect in exitAspects)
@@ -313,19 +325,22 @@ namespace ITnnovative.AOP.Processing
             // Get start aspects and process them
             var startAspects = containingMethod.GetCustomAttributes(typeof(IMethodEnterAspect), true);
 
+            
             foreach (var aspect in startAspects)
             {
                 ((IMethodEnterAspect) aspect).OnMethodEnter(arguments);
             }
 
-            try
+            if (!arguments.HasErrored)
             {
-                // TODO: generic methods?
-                arguments.returnValue = method.Invoke(instance, args);
-            }
-            catch (Exception ex)
-            {
-                arguments.exception = ex.InnerException;
+                try
+                {
+                    arguments.returnValue = method.Invoke(instance, args);
+                }
+                catch (Exception ex)
+                {
+                    arguments.exception = ex.InnerException;
+                }
             }
 
             // Get start aspects and process them

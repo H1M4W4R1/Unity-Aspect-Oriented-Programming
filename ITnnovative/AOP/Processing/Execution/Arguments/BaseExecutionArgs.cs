@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace ITnnovative.AOP.Processing.Exectution.Arguments
+namespace ITnnovative.AOP.Processing.Execution.Arguments
 {
     public class BaseExecutionArgs
     {
@@ -41,5 +41,14 @@ namespace ITnnovative.AOP.Processing.Exectution.Arguments
         /// Invoked when exception is raised
         /// </summary>
         public Action<Exception> onException;
+
+        /// <summary>
+        /// Throw exception before method is executed
+        /// </summary>
+        /// <param name="ex"></param>
+        public void Throw(Exception ex)
+        {
+            exception = ex;
+        }
     }
 }

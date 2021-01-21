@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Text;
 using ITnnovative.AOP.Attributes.Method;
-using ITnnovative.AOP.Processing.Exectution.Arguments;
+using ITnnovative.AOP.Processing.Execution.Arguments;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 

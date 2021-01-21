@@ -1,7 +1,6 @@
-﻿using System;
-using System.Reflection;
+﻿using System.Reflection;
 
-namespace ITnnovative.AOP.Processing.Exectution.Arguments
+namespace ITnnovative.AOP.Processing.Execution.Arguments
 {
     public class PropertyExecutionArguments : BaseExecutionArgs
     {

@@ -1,6 +1,5 @@
 ﻿using System;
-using ITnnovative.AOP.Processing.Exectution;
-using ITnnovative.AOP.Processing.Exectution.Arguments;
+using ITnnovative.AOP.Processing.Execution.Arguments;
 
 namespace ITnnovative.AOP.Attributes.Method
 {

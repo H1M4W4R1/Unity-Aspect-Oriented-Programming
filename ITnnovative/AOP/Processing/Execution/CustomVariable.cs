@@ -1,4 +1,4 @@
-﻿namespace ITnnovative.AOP.Processing.Exectution
+﻿namespace ITnnovative.AOP.Processing.Execution
 {
     public class CustomVariable
     {
