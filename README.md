@@ -53,6 +53,12 @@ Yes, you should use Variables. All arguments used in Aspects inherit BaseExecuti
 * `AddVariable(string name, object value)` - which adds variable to local memory of aspect call
 * `GetVariable<T>(string name)` - which gets variable using name, if none returns default
 
+## Can I throw error from eg. IMethodEnterAspect::OnMethodEnter(<args>)?
+Yes, you can. Just use `args.Throw(<System.Exception>);` and you're fine. It is recommended to use `return` after this method, otherwise the Aspect code will continue to execute.
+	
+## Can I create field aspects?
+No, you can't, however you can encapsulate field into Property which is supported - it is less painful solution both for you and your processor :)
+
 ## Can I've one aspect for properties, methods, events etc.?
 Yes, just implement all interfaces you desire :)
 
