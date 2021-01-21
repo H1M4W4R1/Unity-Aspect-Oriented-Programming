@@ -58,6 +58,27 @@ Yes, you can. Just use `args.Throw(<System.Exception>);` and you're fine. It is 
 	
 ## Can I create field aspects?
 No, you can't, however you can encapsulate field into Property which is supported - it is less painful solution both for you and your processor :)
+An example:
+```cs
+[Serializable]
+public class Foo
+{
+    [SerializeField]
+    private string name;
+        
+    public string Name { get => name; [Observable] set => name = value; }
+}
+
+public class ObservableAttribute : Attribute, IMethodEnterAspect
+{
+    public void OnMethodEnter(MethodExecutionArguments args)
+    {
+       args.Throw(new Exception("Hello world! Breaking things is fun!"));
+       return;
+       Debug.Log("Foo has been set");
+    }
+}
+```
 
 ## Can I've one aspect for properties, methods, events etc.?
 Yes, just implement all interfaces you desire :)
