@@ -13,6 +13,9 @@ public class MyCustomAspect : Attribute, IMethodEnterAspect
 }
 
 ```
+# Known problems
+* Seems not to work with Android
+* Not tested on: iOS, OSX, some Linux distributions
 
 # Possible Attribute Usages
 You can use Aspect Attributes such as following:
