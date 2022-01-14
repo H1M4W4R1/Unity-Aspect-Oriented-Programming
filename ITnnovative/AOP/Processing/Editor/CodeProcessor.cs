@@ -23,7 +23,7 @@ namespace ITnnovative.AOP.Processing.Editor
     {
         static CodeProcessor()
         {
-            AssemblyReloadEvents.beforeAssemblyReload += WeaveAssemblies; 
+            AssemblyReloadEvents.beforeAssemblyReload += WeaveEditorAssemblies; 
         }
         
         /// <summary>
@@ -317,16 +317,26 @@ namespace ITnnovative.AOP.Processing.Editor
         /// <summary>
         /// Wave all assemblies
         /// </summary>
-        public static void WeaveAssemblies()
+        public static void WeaveAssemblies(bool isPlayer)
         {
             var unityDefaultAssembly = AssemblyDefinition.ReadAssembly(
-                Application.dataPath + "/../Library/ScriptAssemblies/Assembly-CSharp.dll",
+                Application.dataPath + $"/../Library/{(isPlayer ? "Player" : "")}ScriptAssemblies/Assembly-CSharp.dll",
                 new ReaderParameters() {ReadWrite = true});
             
-            Debug.Log("[Unity AOP] Weaving assemblies...");
+            Debug.Log($"[Unity AOP] Weaving {(isPlayer ? "player" : "editor")} assemblies..."); 
             WeaveAssembly(unityDefaultAssembly);
         
         }
+
+        /// <summary>
+        /// Weave assemblies in editor
+        /// </summary>
+        public static void WeaveEditorAssemblies() => WeaveAssemblies(false);
+
+        /// <summary>
+        /// Weave assemblies in player
+        /// </summary>
+        public static void WeavePlayerAssemblies() => WeaveAssemblies(true);
 
         /// <summary>
         /// Check if member has attribute
