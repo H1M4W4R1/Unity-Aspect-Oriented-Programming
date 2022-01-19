@@ -14,8 +14,7 @@ public class MyCustomAspect : Attribute, IMethodEnterAspect
 
 ```
 # Known problems
-* Seems not to work with Android
-* Not tested on: iOS, OSX, some Linux distributions
+* Not tested on: iOS, OSX, Linux (but it should work...)
 
 # Possible Attribute Usages
 You can use Aspect Attributes such as following:
@@ -88,3 +87,6 @@ Yes, just implement all interfaces you desire :)
 
 ## Can I fork this project?
 It's MIT licensed. Feel free to commit updated versions into Git. Feel free to send me a link, so I could implement your upgrades too.
+
+## Wall of Fame
+[494311870](https://github.com/494311870) - build compatibility (including Android), because I was too lazy to fix this...
