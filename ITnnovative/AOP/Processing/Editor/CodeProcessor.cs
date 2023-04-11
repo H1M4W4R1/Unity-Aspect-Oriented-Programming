@@ -110,7 +110,8 @@ namespace ITnnovative.AOP.Processing.Editor
                 }
             }
             
-            assembly.Write();
+            assembly.Write();			
+            assembly.Dispose();
         }
 
         public static void EncapsulateEventExecution(ModuleDefinition module, TypeDefinition type, EventDefinition evt)
