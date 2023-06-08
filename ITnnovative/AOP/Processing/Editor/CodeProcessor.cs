@@ -320,13 +320,27 @@ namespace ITnnovative.AOP.Processing.Editor
         /// </summary>
         public static void WeaveAssemblies(bool isPlayer)
         {
-            var unityDefaultAssembly = AssemblyDefinition.ReadAssembly(
-                Application.dataPath + $"/../Library/{(isPlayer ? "Player" : "")}ScriptAssemblies/Assembly-CSharp.dll",
-                new ReaderParameters() {ReadWrite = true});
-            
-            Debug.Log($"[Unity AOP] Weaving {(isPlayer ? "player" : "editor")} assemblies..."); 
-            WeaveAssembly(unityDefaultAssembly);
-        
+            var directoryPath = Application.dataPath + $"/../Library/{(isPlayer ? "Player/" : "")}ScriptAssemblies/";
+
+            if (Directory.Exists(directoryPath))
+            {
+                var dllFiles = Directory.GetFiles(directoryPath, "*.dll");
+
+                foreach (var filePath in dllFiles)
+                {
+                    try
+                    {
+                        var unityDefaultAssembly = AssemblyDefinition.ReadAssembly(filePath, new ReaderParameters { ReadWrite = true });
+
+                        Debug.Log($"[Unity AOP] Weaving {(isPlayer ? "player" : "editor")} assemblies...");
+                        WeaveAssembly(unityDefaultAssembly);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[Unity AOP] Failed to weave assembly '{filePath}': {ex.Message}");
+                    }
+                }
+            }
         }
 
         /// <summary>
