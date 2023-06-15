@@ -321,11 +321,29 @@ namespace ITnnovative.AOP.Processing.Editor
         /// </summary>
         public static void WeaveAssemblies(bool isPlayer)
         {
-            var directoryPath = Application.dataPath + $"/../Library/{(isPlayer ? "Player/" : "")}ScriptAssemblies/";
+
+            var directoryPath = "";
+#if UNITY_WEBGL
+            // Works with IL2CPP artifact system
+            if (isPlayer)
+                directoryPath = Application.dataPath + $"/../Library/Bee/artifacts/WebGL/ManagedStripped/";
+            else
+                directoryPath = Application.dataPath + $"/../Library/ScriptAssemblies/"; 
+#else
+            directoryPath = Application.dataPath + $"/../Library/{(isPlayer ? "Player/" : "")}ScriptAssemblies/"; 
+#endif
 
             if (Directory.Exists(directoryPath))
             {
                 var dllFiles = Directory.GetFiles(directoryPath, "*.dll");
+
+#if UNITY_WEBGL // Compliance for other Unity3D versions which do not use artifacts.
+                if (dllFiles.Length < 1)
+                {
+                    directoryPath = Application.dataPath + $"/../Library/Bee/PlayerScriptAssemblies/";
+                    dllFiles = Directory.GetFiles(directoryPath, "*.dll");
+                }
+#endif
 
                 foreach (var filePath in dllFiles)
                 {
