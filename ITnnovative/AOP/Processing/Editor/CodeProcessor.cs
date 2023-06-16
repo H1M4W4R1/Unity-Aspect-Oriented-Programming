@@ -315,62 +315,61 @@ namespace ITnnovative.AOP.Processing.Editor
             processor.InsertAfter(afterThis, insertThis);
             return insertThis;
         }
-        
+
         /// <summary>
-        /// Wave all assemblies
+        /// Weave all assemblies available at specified path
         /// </summary>
-        public static void WeaveAssemblies(bool isPlayer)
+        /// <param name="dllFiles">Files to weave. Must be *.dll</param>
+        public static void WeaveAssembliesAtPaths(string[] dllFiles)
         {
-
-            var directoryPath = "";
-#if UNITY_WEBGL
-            // Works with IL2CPP artifact system
-            if (isPlayer)
-                directoryPath = Application.dataPath + $"/../Library/Bee/artifacts/WebGL/ManagedStripped/";
-            else
-                directoryPath = Application.dataPath + $"/../Library/ScriptAssemblies/"; 
-#else
-            directoryPath = Application.dataPath + $"/../Library/{(isPlayer ? "Player/" : "")}ScriptAssemblies/"; 
-#endif
-
-            if (Directory.Exists(directoryPath))
+            Debug.Log($"[Unity AOP] Weaving assemblies...");
+            foreach (var filePath in dllFiles)
             {
-                var dllFiles = Directory.GetFiles(directoryPath, "*.dll");
-
-#if UNITY_WEBGL // Compliance for other Unity3D versions which do not use artifacts.
-                if (dllFiles.Length < 1)
+                Debug.Log($"[Unity AOP] Weaving {filePath}");
+                try
                 {
-                    directoryPath = Application.dataPath + $"/../Library/Bee/PlayerScriptAssemblies/";
-                    dllFiles = Directory.GetFiles(directoryPath, "*.dll");
+                    // Ignore MONO Cecil
+                    if (filePath.Contains("Mono.Cecil.Rocks.dll") ||
+                        filePath.Contains("Mono.Cecil.dll") ||
+                        filePath.Contains("Newtonsoft.Json.dll")) return;
+                    
+                    var assembly = AssemblyDefinition.ReadAssembly(filePath, new ReaderParameters { ReadWrite = true });
+                    
+                    
+                    WeaveAssembly(assembly);
                 }
-#endif
-
-                foreach (var filePath in dllFiles)
+                catch (Exception ex)
                 {
-                    try
-                    {
-                        var unityDefaultAssembly = AssemblyDefinition.ReadAssembly(filePath, new ReaderParameters { ReadWrite = true });
-
-                        Debug.Log($"[Unity AOP] Weaving {(isPlayer ? "player" : "editor")} assemblies...");
-                        WeaveAssembly(unityDefaultAssembly);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.LogWarning($"[Unity AOP] Failed to weave assembly '{filePath}': {ex.Message}");
-                    }
+                    Debug.LogWarning($"[Unity AOP] Failed to weave assembly '{filePath}': {ex.Message} \r\n{ex.StackTrace}");
+                    
                 }
             }
         }
 
         /// <summary>
+        /// Get editor assemblies paths
+        /// </summary>
+        /// <returns></returns>
+        public static string[] GetEditorAssembliesPaths()
+        {
+            var directoryPath = Application.dataPath + $"/../Library/ScriptAssemblies/";
+            if (Directory.Exists(directoryPath))
+            {
+                var dllFiles = Directory.GetFiles(directoryPath, "*.dll");
+                return dllFiles;
+            }
+
+            return Array.Empty<string>();
+        }
+        
+        /// <summary>
         /// Weave assemblies in editor
         /// </summary>
-        public static void WeaveEditorAssemblies() => WeaveAssemblies(false);
-
-        /// <summary>
-        /// Weave assemblies in player
-        /// </summary>
-        public static void WeavePlayerAssemblies() => WeaveAssemblies(true);
+        public static void WeaveEditorAssemblies()
+        {
+            var dllFiles = GetEditorAssembliesPaths();
+            WeaveAssembliesAtPaths(dllFiles);
+        }
 
         /// <summary>
         /// Check if member has attribute
