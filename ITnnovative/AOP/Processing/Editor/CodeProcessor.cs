@@ -338,38 +338,37 @@ namespace ITnnovative.AOP.Processing.Editor
                 {
                     newMethodBody.Add(Instruction.Create(OpCodes.Starg_S, param));
                 }
-                
-                
             }
             
-            // ldloc.0
-            // ldfld <bool> hasReturned
-            // stloc.1
-            // ldloc.1
-            // brfalse.s <jump_over_next_block>
+            var retField = typeof(AspectReturnData).GetField(nameof(AspectReturnData.hasReturned));
+            var retValueField = typeof(AspectReturnData).GetField(nameof(AspectReturnData.returnValue));
+            var errField = typeof(AspectReturnData).GetField(nameof(AspectReturnData.hasErrored));
+            var excField = typeof(AspectReturnData).GetField(nameof(AspectReturnData.thrownException));
+
+            var gamma = Instruction.Create(OpCodes.Ldloc_0);
+            var delta = Instruction.Create(OpCodes.Nop);
             
-            // ldloc.0
-            // ldfld <object> returnValue
-            // unbox.any <T> / castclass<T>
-            // stloc.2
-            // ldloc.2
-            // ret
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));            
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, module.ImportReference(retField)));
+            newMethodBody.Add(Instruction.Create(OpCodes.Brfalse, gamma)); // TODO: JUMP TARGET
             
-            // ldloc.0
-            // ldfld <bool> hasErrored;
-            // stloc.3
-            // ldloc.3
-            // brfalse.s jump_over
-            // ldloc.0
-            // ldfld <Exception> thrownException
-            // throw
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));  
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, module.ImportReference(retValueField)));
+            newMethodBody.Add(method.ReturnType.IsValueType
+                ? Instruction.Create(OpCodes.Unbox_Any, method.ReturnType)
+                : Instruction.Create(OpCodes.Castclass, method.ReturnType));
+            newMethodBody.Add(Instruction.Create(OpCodes.Ret));
             
+            newMethodBody.Add(gamma);
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, module.ImportReference(errField)));
+            newMethodBody.Add(Instruction.Create(OpCodes.Brfalse, delta)); // TODO: JUMP TARGET
             
-                
-            
-            
-            // TODO: unpack returned object into array replacing arguments, check if returning => return, check for error => throw
-            
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));  
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, module.ImportReference(excField)));
+            newMethodBody.Add(Instruction.Create(OpCodes.Throw));
+
+            newMethodBody.Add(delta);
+
             return newMethodBody;
         }
 

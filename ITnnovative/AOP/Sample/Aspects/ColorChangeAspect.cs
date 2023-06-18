@@ -18,7 +18,7 @@ namespace ITnnovative.AOP.Sample.Aspects
             go.GetComponent<Renderer>().material.color = _newColor;
         }
 
-        public ColorChangeAspect(float r, float g, float b, float a = 0)
+        public ColorChangeAspect(float r, float g, float b, float a = 0) 
         {
             _newColor = new Color(r, g, b, a);
         }
