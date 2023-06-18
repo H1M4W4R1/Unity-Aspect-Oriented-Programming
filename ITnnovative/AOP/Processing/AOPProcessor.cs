@@ -51,10 +51,6 @@ namespace ITnnovative.AOP.Processing
                     ((IPropertySetEnterAspect) aspect).OnPropertySetEnter(data);
                 if (typeof(IPropertySetExitAspect).IsAssignableFrom(typeof(T)))
                     ((IPropertySetExitAspect) aspect).OnPropertySetExit(data);
-                if (typeof(IEventAfterInvokedAspect).IsAssignableFrom(typeof(T)))
-                    ((IEventAfterInvokedAspect) aspect).AfterEventInvoked(data);
-                if (typeof(IEventBeforeInvokedAspect).IsAssignableFrom(typeof(T)))
-                    ((IEventBeforeInvokedAspect) aspect).BeforeEventInvoked(data);
                 if (typeof(IEventBeforeListenerAddedAspect).IsAssignableFrom(typeof(T)))
                     ((IEventBeforeListenerAddedAspect) aspect).BeforeEventListenerAdded(data);
                 if (typeof(IEventAfterListenerAddedAspect).IsAssignableFrom(typeof(T)))
@@ -96,11 +92,6 @@ namespace ITnnovative.AOP.Processing
 
         public static void OnEventRemoveListenerExit(object instance, AspectData data, Type type, string methodName, object[] args) =>
             OnT<IEventAfterListenerRemovedAspect>(instance, data, type, methodName, args);
-        
-        public static void OnEventInvokeEnter(object instance, AspectData data, Type type, string methodName, object[] args) =>
-            OnT<IEventBeforeInvokedAspect>(instance, data, type, methodName, args);
 
-        public static void OnEventInvokeExit(object instance, AspectData data, Type type, string methodName, object[] args) =>
-            OnT<IEventAfterInvokedAspect>(instance, data, type, methodName, args);
     }
 }
