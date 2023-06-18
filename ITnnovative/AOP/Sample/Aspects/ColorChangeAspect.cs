@@ -1,5 +1,6 @@
 using System;
 using ITnnovative.AOP.Attributes.Method;
+using ITnnovative.AOP.Processing.Execution;
 using ITnnovative.AOP.Processing.Execution.Arguments;
 using UnityEngine;
 
@@ -12,9 +13,9 @@ namespace ITnnovative.AOP.Sample.Aspects
     {
         private Color _newColor;
         
-        public void OnMethodEnter(AspectExecutionArgs args)
+        public void OnMethodEnter(AspectData args)
         {
-            var go = (MonoBehaviour) args.source;
+            var go = (MonoBehaviour) args.GetSource(); 
             go.GetComponent<Renderer>().material.color = _newColor;
         }
 

@@ -1,5 +1,6 @@
 ﻿using System;
 using ITnnovative.AOP.Attributes.Method;
+using ITnnovative.AOP.Processing.Execution;
 using ITnnovative.AOP.Processing.Execution.Arguments;
 
 namespace ITnnovative.AOP.Attributes.Event
@@ -7,7 +8,7 @@ namespace ITnnovative.AOP.Attributes.Event
     public interface IEventExceptionThrownAspect
     {
 
-        void OnExceptionThrown(Exception exception, AspectExecutionArgs args);
+        void OnExceptionThrown(Exception exception, AspectData args);
 
     }
 }

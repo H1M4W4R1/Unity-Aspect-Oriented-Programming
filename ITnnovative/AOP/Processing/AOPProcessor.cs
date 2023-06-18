@@ -6,6 +6,7 @@ using ITnnovative.AOP.Attributes.Method;
 using ITnnovative.AOP.Attributes.Property;
 using ITnnovative.AOP.Processing.Execution;
 using ITnnovative.AOP.Processing.Execution.Arguments;
+using UnityEngine;
 
 namespace ITnnovative.AOP.Processing
 {
@@ -14,100 +15,92 @@ namespace ITnnovative.AOP.Processing
     /// </summary>
     public static class AOPProcessor
     {
-        public static AspectData OnT<T>(object instance, Type type, string methodName, object[] args)
+        public static void OnT<T>(object instance, AspectData data, Type type, string methodName, object[] args)
         {
+            data.SetSource(instance);
+            
             var method = type.GetMethod(methodName);
             if (method == null) throw new Exception("We don't know what went wrong... But we know that it went terribly wrong.");
-            
+
             // Parse parameters
             var mParam = method.GetParameters();
-
-            var aa = new List<MethodArgument>();
 
             // Generate arguments for execution args
             for (var index = 0; index < args.Length; index++)
             {
                 var pValue = args[index];
                 var pName = mParam[index].Name;
-                aa.Add(new MethodArgument(pName, pValue));
+                
+                // Register argument or update value
+                data.SetArgument(index, pName, pValue);
             }
-
-            var arguments = new AspectExecutionArgs()
-                {source = instance, arguments = aa};
 
             var aspects = method.GetCustomAttributes(typeof(T), true);
             foreach (var aspect in aspects)
             {
                 // A nice tree of available aspect bases ;)
                 if (typeof(IMethodEnterAspect).IsAssignableFrom(typeof(T)))
-                    ((IMethodEnterAspect) aspect).OnMethodEnter(arguments);
+                    ((IMethodEnterAspect) aspect).OnMethodEnter(data);
                 if (typeof(IMethodExitAspect).IsAssignableFrom(typeof(T)))
-                    ((IMethodExitAspect) aspect).OnMethodExit(arguments);
+                    ((IMethodExitAspect) aspect).OnMethodExit(data);
                 if (typeof(IPropertyGetEnterAspect).IsAssignableFrom(typeof(T)))
-                    ((IPropertyGetEnterAspect) aspect).OnPropertyGetEnter(arguments);
+                    ((IPropertyGetEnterAspect) aspect).OnPropertyGetEnter(data);
                 if (typeof(IPropertyGetExitAspect).IsAssignableFrom(typeof(T)))
-                    ((IPropertyGetExitAspect) aspect).OnPropertyGetExit(arguments);
+                    ((IPropertyGetExitAspect) aspect).OnPropertyGetExit(data);
                 if (typeof(IPropertySetEnterAspect).IsAssignableFrom(typeof(T)))
-                    ((IPropertySetEnterAspect) aspect).OnPropertySetEnter(arguments);
+                    ((IPropertySetEnterAspect) aspect).OnPropertySetEnter(data);
                 if (typeof(IPropertySetExitAspect).IsAssignableFrom(typeof(T)))
-                    ((IPropertySetExitAspect) aspect).OnPropertySetExit(arguments);
+                    ((IPropertySetExitAspect) aspect).OnPropertySetExit(data);
                 if (typeof(IEventAfterInvokedAspect).IsAssignableFrom(typeof(T)))
-                    ((IEventAfterInvokedAspect) aspect).AfterEventInvoked(arguments);
+                    ((IEventAfterInvokedAspect) aspect).AfterEventInvoked(data);
                 if (typeof(IEventBeforeInvokedAspect).IsAssignableFrom(typeof(T)))
-                    ((IEventBeforeInvokedAspect) aspect).BeforeEventInvoked(arguments);
+                    ((IEventBeforeInvokedAspect) aspect).BeforeEventInvoked(data);
                 if (typeof(IEventBeforeListenerAddedAspect).IsAssignableFrom(typeof(T)))
-                    ((IEventBeforeListenerAddedAspect) aspect).BeforeEventListenerAdded(arguments);
+                    ((IEventBeforeListenerAddedAspect) aspect).BeforeEventListenerAdded(data);
                 if (typeof(IEventAfterListenerAddedAspect).IsAssignableFrom(typeof(T)))
-                    ((IEventAfterListenerAddedAspect) aspect).AfterEventListenerAdded(arguments);
+                    ((IEventAfterListenerAddedAspect) aspect).AfterEventListenerAdded(data);
                 if (typeof(IEventBeforeListenerRemovedAspect).IsAssignableFrom(typeof(T)))
-                    ((IEventBeforeListenerRemovedAspect) aspect).BeforeEventListenerRemoved(arguments);
+                    ((IEventBeforeListenerRemovedAspect) aspect).BeforeEventListenerRemoved(data);
                 if (typeof(IEventAfterListenerRemovedAspect).IsAssignableFrom(typeof(T)))
-                    ((IEventAfterListenerRemovedAspect) aspect).AfterEventListenerRemoved(arguments);
+                    ((IEventAfterListenerRemovedAspect) aspect).AfterEventListenerRemoved(data);
             }
 
-            return new AspectData()
-            {
-                arguments = arguments.arguments.Select(q => q.value).ToArray(),
-                hasErrored = arguments.HasErrored,
-                returnValue = arguments.GetReturnValue(),
-                thrownException = arguments.GetException(),
-                hasReturned = arguments.HasReturned
-            };
+         
         }
 
-        public static AspectData OnMethodStart(object instance, Type type, string methodName, object[] args) =>
-            OnT<IMethodEnterAspect>(instance, type, methodName, args);
-        public static AspectData OnMethodComplete(object instance, Type type, string methodName, object[] args) =>
-            OnT<IMethodExitAspect>(instance, type, methodName, args);
+        public static void OnMethodStart(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IMethodEnterAspect>(instance, data, type, methodName, args);
+        public static void OnMethodComplete(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IMethodExitAspect>(instance, data, type, methodName, args);
         
-        public static AspectData OnPropertyGetEnter(object instance, Type type, string methodName, object[] args) =>
-            OnT<IPropertyGetEnterAspect>(instance, type, methodName, args);
+        public static void OnPropertyGetEnter(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IPropertyGetEnterAspect>(instance, data, type, methodName, args);
 
-        public static AspectData OnPropertyGetExit(object instance, Type type, string methodName, object[] args) =>
-            OnT<IPropertyGetExitAspect>(instance, type, methodName, args);
+        public static void OnPropertyGetExit(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IPropertyGetExitAspect>(instance, data, type, methodName, args);
         
-        public static AspectData OnPropertySetEnter(object instance, Type type, string methodName, object[] args) =>
-            OnT<IPropertySetEnterAspect>(instance, type, methodName, args);
+        public static void OnPropertySetEnter(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IPropertySetEnterAspect>(instance, data, type, methodName, args);
 
-        public static AspectData OnPropertySetExit(object instance, Type type, string methodName, object[] args) =>
-            OnT<IPropertySetExitAspect>(instance, type, methodName, args);
+        public static void OnPropertySetExit(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IPropertySetExitAspect>(instance, data, type, methodName, args);
         
-        public static AspectData OnEventAddListenerEnter(object instance, Type type, string methodName, object[] args) =>
-            OnT<IEventBeforeListenerAddedAspect>(instance, type, methodName, args);
+        public static void OnEventAddListenerEnter(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IEventBeforeListenerAddedAspect>(instance, data, type, methodName, args);
 
-        public static AspectData OnEventAddListenerExit(object instance, Type type, string methodName, object[] args) =>
-            OnT<IEventAfterListenerAddedAspect>(instance, type, methodName, args);
+        public static void OnEventAddListenerExit(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IEventAfterListenerAddedAspect>(instance, data, type, methodName, args);
         
-        public static AspectData OnEventRemoveListenerEnter(object instance, Type type, string methodName, object[] args) =>
-            OnT<IEventBeforeListenerRemovedAspect>(instance, type, methodName, args);
+        public static void OnEventRemoveListenerEnter(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IEventBeforeListenerRemovedAspect>(instance, data, type, methodName, args);
 
-        public static AspectData OnEventRemoveListenerExit(object instance, Type type, string methodName, object[] args) =>
-            OnT<IEventAfterListenerRemovedAspect>(instance, type, methodName, args);
+        public static void OnEventRemoveListenerExit(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IEventAfterListenerRemovedAspect>(instance, data, type, methodName, args);
         
-        public static AspectData OnEventInvokeEnter(object instance, Type type, string methodName, object[] args) =>
-            OnT<IEventBeforeInvokedAspect>(instance, type, methodName, args);
+        public static void OnEventInvokeEnter(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IEventBeforeInvokedAspect>(instance, data, type, methodName, args);
 
-        public static AspectData OnEventInvokeExit(object instance, Type type, string methodName, object[] args) =>
-            OnT<IEventAfterInvokedAspect>(instance, type, methodName, args);
+        public static void OnEventInvokeExit(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<IEventAfterInvokedAspect>(instance, data, type, methodName, args);
     }
 }

@@ -1,9 +1,10 @@
-﻿using ITnnovative.AOP.Processing.Execution.Arguments;
+﻿using ITnnovative.AOP.Processing.Execution;
+using ITnnovative.AOP.Processing.Execution.Arguments;
 
 namespace ITnnovative.AOP.Attributes.Event
 {
     public interface IEventAfterInvokedAspect : IEventInvokedAspect
     {
-        void AfterEventInvoked(AspectExecutionArgs args);
+        void AfterEventInvoked(AspectData args);
     }
 }

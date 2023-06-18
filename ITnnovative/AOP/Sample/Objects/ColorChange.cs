@@ -11,7 +11,7 @@ namespace ITnnovative.AOP.Sample.Objects
         public void OnMouseDown() 
         { 
             if (_counter == 0)
-            {
+            {  
                 SetRed();
                 _counter++;
             }
@@ -20,15 +20,17 @@ namespace ITnnovative.AOP.Sample.Objects
                 SetWhite();  
                 _counter--;
             }  
-        } 
-   
+        }
+
         [ColorChangeAspect(1, 0, 0, 1)]
-        public void SetRed(){}      
+        public void SetRed()
+        {
+        }        
 
         [ColorChangeAspect(1, 1, 1, 1)]
-        public void SetWhite(){}
+        public void SetWhite(){}  
 
-        [ColorChangeAspect(1, 1, 1, 1)]
+        [ColorChangeAspect(0, 1, 0, 1)]
         public void SetColor(int r, int g, int b, int a)   
         {
             // Just for testing :D

@@ -148,6 +148,7 @@ namespace ITnnovative.AOP.Processing.Editor
             // New body for current method (capsule)
             var newMethodBody = new List<Instruction>();
             newMethodBody.Add(Instruction.Create(method.IsStatic ? OpCodes.Ldnull : OpCodes.Ldarg_0)); // ldnull / ldarg_0
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));
             newMethodBody.Add(Instruction.Create(OpCodes.Ldtoken, type));
             newMethodBody.Add(Instruction.Create(OpCodes.Call, typeof(Type).GetMonoMethod(module, nameof(Type.GetTypeFromHandle))));
 
@@ -156,6 +157,8 @@ namespace ITnnovative.AOP.Processing.Editor
                 mName = overrideName;
             
             newMethodBody.Add(Instruction.Create(OpCodes.Ldstr, mName));
+            
+            // Copy method parameters
             newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, method.Parameters.Count));
             newMethodBody.Add(Instruction.Create(OpCodes.Newarr, module.ImportReference(typeof(object))));
 
@@ -204,6 +207,7 @@ namespace ITnnovative.AOP.Processing.Editor
                 newMethodBody.Add(Instruction.Create(OpCodes.Stelem_Ref));
             }
             
+            // Call method
             if(module.HasType(typeof(AOPProcessor))){
                 newMethodBody.Add(Instruction.Create(OpCodes.Call,
                     module.GetType(typeof(AOPProcessor))
@@ -215,10 +219,10 @@ namespace ITnnovative.AOP.Processing.Editor
                     overrideMethod)));
             }
             
-            var argField = GetField(adr, nameof(AspectData.arguments));
-            newMethodBody.Add(Instruction.Create(OpCodes.Stloc_0));
+            // Recover parameters from aspect return data TODO :FIX
+            var argField = GetMethod(adr, nameof(AspectData.GetArgument));
+            // newMethodBody.Add(Instruction.Create(OpCodes.Stloc_0)); // Removed into void
 
-            // Recover parameters from aspect return data
             for (var num = 0; num < method.Parameters.Count; num++)
             { 
                 var param = method.Parameters[num];
@@ -228,9 +232,8 @@ namespace ITnnovative.AOP.Processing.Editor
                     newMethodBody.Add(Instruction.Create(OpCodes.Ldarg, param));
 
                 newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));
-                newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, argField));
                 newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, num));
-                newMethodBody.Add(Instruction.Create(OpCodes.Ldelem_Ref));
+                newMethodBody.Add(Instruction.Create(OpCodes.Callvirt, argField));
 
                 if(pType.IsValueType)
                     newMethodBody.Add(Instruction.Create(OpCodes.Unbox_Any, pType));
@@ -274,23 +277,25 @@ namespace ITnnovative.AOP.Processing.Editor
             }
             
             // Process return value and error value
-            var retField = GetField(adr, nameof(AspectData.hasReturned));
-            var retValueField = GetField(adr, nameof(AspectData.returnValue));
-            var errField = GetField(adr, nameof(AspectData.hasErrored));
-            var excField = GetField(adr, nameof(AspectData.thrownException));
+            var hasReturned = GetProperty(adr, nameof(AspectData.HasReturned)).GetMethod;
+            var hasErrored = GetProperty(adr, nameof(AspectData.HasErrored)).GetMethod;
+
+            
+            var returnedValue = GetMethod(adr, nameof(AspectData.GetReturnValue));
+            var thrownException = GetMethod(adr, nameof(AspectData.GetException));
 
             var gamma = Instruction.Create(OpCodes.Ldloc_0);
             var delta = Instruction.Create(OpCodes.Nop);
             
             newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));        
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, retField));
+            newMethodBody.Add(Instruction.Create(OpCodes.Callvirt, hasReturned));
             newMethodBody.Add(Instruction.Create(OpCodes.Brfalse, gamma)); 
 
             // Sanity check if method returns a value, otherwise puts regular ret command
             if (method.ReturnType != module.TypeSystem.Void)
             {
                 newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));
-                newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, retValueField));
+                newMethodBody.Add(Instruction.Create(OpCodes.Callvirt, returnedValue));
                 newMethodBody.Add(method.ReturnType.IsValueType
                     ? Instruction.Create(OpCodes.Unbox_Any, method.ReturnType)
                     : Instruction.Create(OpCodes.Castclass, method.ReturnType));
@@ -299,11 +304,11 @@ namespace ITnnovative.AOP.Processing.Editor
             newMethodBody.Add(Instruction.Create(OpCodes.Ret));
             
             newMethodBody.Add(gamma);
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, errField));
+            newMethodBody.Add(Instruction.Create(OpCodes.Callvirt, hasErrored));
             newMethodBody.Add(Instruction.Create(OpCodes.Brfalse, delta)); 
             
             newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));  
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, excField));
+            newMethodBody.Add(Instruction.Create(OpCodes.Callvirt, thrownException));
             newMethodBody.Add(Instruction.Create(OpCodes.Throw));
 
             newMethodBody.Add(delta);
@@ -314,6 +319,9 @@ namespace ITnnovative.AOP.Processing.Editor
         public static void EncapsulateEventExecution(AssemblyDefinition assembly, ModuleDefinition module, 
              TypeDefinition type, EventDefinition evt)
         {
+            // TODO: Rework
+            return;
+            
             foreach (var method in type.Methods)
             {
                 var body = method.Body;
@@ -399,9 +407,20 @@ namespace ITnnovative.AOP.Processing.Editor
                 }
             }
         }
+        
+        private static MethodDefinition GetMethod(TypeDefinition qType, string fName)
+        {
+            return qType.Methods.FirstOrDefault(f => f.Name == fName);
+        }
+        
         private static FieldDefinition GetField(TypeDefinition qType, string fName)
         {
             return qType.Fields.FirstOrDefault(f => f.Name == fName);
+        }
+        
+        private static PropertyDefinition GetProperty(TypeDefinition qType, string fName)
+        {
+            return qType.Properties.FirstOrDefault(f => f.Name == fName);
         }
 
         private static TypeDefinition GetOrImportType(ModuleDefinition module, Type t)
@@ -422,9 +441,17 @@ namespace ITnnovative.AOP.Processing.Editor
             TypeDefinition type, MethodDefinition method, string overrideName = null, string startMethod = nameof(AOPProcessor.OnMethodStart),
             string completeMethod = nameof(AOPProcessor.OnMethodComplete))
         {
+            var aData = GetOrImportType(module, typeof(AspectData));
+            var aDataCtor = aData.GetConstructors().FirstOrDefault();
+
             var newMethodBody = new List<Instruction>();
             var startInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, startMethod);
             var endInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, completeMethod);
+
+            // Create new AspectData object 
+            newMethodBody.Add(Instruction.Create(OpCodes.Nop));
+            newMethodBody.Add(Instruction.Create(OpCodes.Newobj, aDataCtor));
+            newMethodBody.Add(Instruction.Create(OpCodes.Stloc_0));
 
             // Create new body
             newMethodBody.AddRange(startInstructions);
@@ -488,7 +515,7 @@ namespace ITnnovative.AOP.Processing.Editor
             }
 
             // Create variable at first spot
-            var tempVar = new VariableDefinition(GetOrImportType(module, typeof(AspectData)));
+            var tempVar = new VariableDefinition(aData);
             method.Body.Variables.Insert(0, tempVar);
             
             // Update body
