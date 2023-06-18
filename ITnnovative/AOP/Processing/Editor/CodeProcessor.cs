@@ -11,6 +11,7 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using Newtonsoft.Json;
+using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 using MethodAttributes = Mono.Cecil.MethodAttributes;
@@ -41,7 +42,7 @@ namespace ITnnovative.AOP.Processing.Editor
                 {
                     // For all constructors
                     for (var index = 0; index < type.Methods.Count; index++)
-                    {
+                    { 
                         var method = type.Methods[index];
 
                         if (!HasAttributeOfType<AOPGeneratedAttribute>(method))
@@ -50,11 +51,12 @@ namespace ITnnovative.AOP.Processing.Editor
                             if (HasAttributeOfType<IMethodAspect>(method))
                             { 
                                 MarkAsProcessed(module, method);
-                                EncapsulateMethod(assembly, module, type, method);
+                                WrapEncapsulateMethod(assembly, module, type, method);
                             }
                         }
                     }
 
+                    // Process events
                     for (var index = 0; index < type.Events.Count; index++)
                     {
                         var evt = type.Events[index];
@@ -66,13 +68,14 @@ namespace ITnnovative.AOP.Processing.Editor
                                 MarkAsProcessed(module, evt);
                                 if (HasAttributeOfType<IEventAddedListenerAspect>(evt))
                                 {
-                                    EncapsulateMethod(assembly, module, type, evt.AddMethod, evt.Name, 
-                                        nameof(AOPProcessor.OnEventListenerAdded));    
+                                    /*EncapsulateMethod(assembly, module, type, evt.AddMethod, evt.Name, 
+                                        nameof(AOPProcessor.OnEventListenerAdded));*/
+                                    WrapEncapsulateMethod(assembly, module, type, evt.AddMethod, evt.Name);
                                 }
                                 if (HasAttributeOfType<IEventRemovedListenerAspect>(evt))
                                 {
-                                    EncapsulateMethod(assembly, module, type, evt.RemoveMethod, evt.Name, 
-                                        nameof(AOPProcessor.OnEventListenerRemoved));
+                                    WrapEncapsulateMethod(assembly, module, type, evt.RemoveMethod, evt.Name);
+
                                 }
 
                                 if (HasAttributeOfType<IEventInvokedAspect>(evt))
@@ -85,6 +88,7 @@ namespace ITnnovative.AOP.Processing.Editor
                         
                     }
 
+                    // Process properties
                     for (var index = 0; index < type.Properties.Count; index++)
                     {
                         var property = type.Properties[index];
@@ -96,13 +100,11 @@ namespace ITnnovative.AOP.Processing.Editor
                                 MarkAsProcessed(module, property);
                                 if (HasAttributeOfType<IPropertyGetAspect>(property))
                                 {
-                                    EncapsulateMethod(assembly, module, type, property.GetMethod, property.Name, 
-                                        nameof(AOPProcessor.OnPropertyGet));    
+                                    WrapEncapsulateMethod(assembly, module, type, property.GetMethod, property.Name);
                                 }
                                 if (HasAttributeOfType<IPropertySetAspect>(property))
                                 {
-                                    EncapsulateMethod(assembly, module, type, property.SetMethod, property.Name, 
-                                        nameof(AOPProcessor.OnPropertySet));    
+                                    WrapEncapsulateMethod(assembly, module, type, property.SetMethod, property.Name);
                                 }
                                 
                             } 
@@ -201,6 +203,120 @@ namespace ITnnovative.AOP.Processing.Editor
                     }
                 }
             }
+        }
+
+        public static List<Instruction> CreateAOPInjectableInstructions(AssemblyDefinition assembly, ModuleDefinition module,
+            TypeDefinition type, MethodDefinition method, string overrideName = null, string overrideMethod =
+            nameof(AOPProcessor.OnMethod))
+        {
+            // New body for current method (capsule)
+            var newMethodBody = new List<Instruction>();
+            newMethodBody.Add(Instruction.Create(method.IsStatic ? OpCodes.Ldnull : OpCodes.Ldarg_0)); // ldnull / ldarg_0
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldtoken, type));
+            newMethodBody.Add(Instruction.Create(OpCodes.Call, typeof(Type).GetMonoMethod(module, nameof(Type.GetTypeFromHandle))));
+
+            var mName = method.Name;
+            if (!string.IsNullOrEmpty(overrideName))
+                mName = overrideName;
+            
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldstr, mName));
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, method.Parameters.Count));
+            newMethodBody.Add(Instruction.Create(OpCodes.Newarr, module.ImportReference(typeof(object))));
+
+            for (var num = 0; num < method.Parameters.Count; num++)
+            {
+                var param = method.Parameters[num];
+                var pType = param.ParameterType;
+
+                newMethodBody.Add(Instruction.Create(OpCodes.Dup));
+                newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, num));
+                newMethodBody.Add(Instruction.Create(OpCodes.Ldarg, param));
+                if(param.ParameterType.IsValueType || param.ParameterType.IsGenericParameter)
+                    newMethodBody.Add(Instruction.Create(OpCodes.Box, pType));
+                newMethodBody.Add(Instruction.Create(OpCodes.Stelem_Ref));
+            }
+            
+            if(module.HasType(typeof(AOPProcessor))){
+                newMethodBody.Add(Instruction.Create(OpCodes.Call,
+                    module.GetType(typeof(AOPProcessor))
+                    .GetMethod(overrideMethod)));
+            }
+            else
+            {
+                newMethodBody.Add(Instruction.Create(OpCodes.Call, typeof(AOPProcessor).GetMonoMethod(module, 
+                    overrideMethod)));
+            }
+            
+            // TODO: unpack returned object into array replacing arguments, check if returning => return, check for error => throw
+            
+            return newMethodBody;
+        }
+
+        private static void WrapEncapsulateMethod(AssemblyDefinition assembly, ModuleDefinition module,
+            TypeDefinition type, MethodDefinition method, string overrideName = null)
+        {
+            var newMethodBody = new List<Instruction>();
+            var startInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, nameof(AOPProcessor.OnMethodStart));
+            var endInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName,
+                nameof(AOPProcessor.OnMethodComplete));
+            
+            // TODO: shift all locals by +1 (to stash place for first slot)
+            
+            // Create new body
+            newMethodBody.AddRange(startInstructions);
+            var iCount = method.Body.Instructions.Count;
+            for (var index = 0; index < iCount; index++)
+            {
+                // Get instruction
+                var instr0 = method.Body.Instructions[index];
+
+                // Check if returns value
+                if (method.ReturnType.IsValueType)
+                {
+                    // If struct return value method will return
+                    if (instr0.OpCode == OpCodes.Unbox_Any)
+                    {
+                        // If can have ret
+                        if (index + 1 < iCount)
+                        {
+                            // Get next instruction
+                            var instr1 = method.Body.Instructions[index + 1];
+                            
+                            // If instruction is return
+                            if (instr1.OpCode == OpCodes.Ret)
+                            {
+                                // Add end method callback and append instructions
+                                newMethodBody.AddRange(endInstructions);
+                                newMethodBody.Add(instr0);
+                                newMethodBody.Add(instr1);
+                                index++; // Skip one instruction
+                                continue;
+                            }
+                        }
+                    }
+                }
+                else // If object-return function
+                {
+                    // If returns
+                    if (instr0.OpCode == OpCodes.Ret)
+                    {
+                        // Add end method callback and append instruction
+                        newMethodBody.AddRange(endInstructions);
+                        newMethodBody.Add(instr0);
+                        continue;
+                    }
+                }
+                
+                // If does not return append instruction
+                newMethodBody.Add(instr0);
+            }
+
+            // TODO: register local at first spot
+            
+            // Update body
+            method.Body.Instructions.Clear();
+            method.Body.Instructions.AddRange(newMethodBody);
+            newMethodBody.Clear();
         }
         
         private static void EncapsulateMethod(AssemblyDefinition assembly, ModuleDefinition module, 
@@ -308,13 +424,6 @@ namespace ITnnovative.AOP.Processing.Editor
                 obj.CustomAttributes.Add(new CustomAttribute(attribute));
             }
         }
- 
-        
-        public static Instruction InsertInstructionAfter(this ILProcessor processor, Instruction afterThis, Instruction insertThis)
-        {
-            processor.InsertAfter(afterThis, insertThis);
-            return insertThis;
-        }
 
         /// <summary>
         /// Weave all assemblies available at specified path
@@ -351,7 +460,7 @@ namespace ITnnovative.AOP.Processing.Editor
         /// </summary>
         /// <returns></returns>
         public static string[] GetEditorAssembliesPaths()
-        {
+        { 
             var directoryPath = Application.dataPath + $"/../Library/ScriptAssemblies/";
             if (Directory.Exists(directoryPath))
             {

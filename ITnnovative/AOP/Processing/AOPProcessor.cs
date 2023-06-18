@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace ITnnovative.AOP.Processing
 {
-    /// <summary>
+    /// <summary> 
     /// AOP Processor is a static class responsible for processing AOP Operations
     /// </summary>
     public static class AOPProcessor
@@ -179,7 +179,7 @@ namespace ITnnovative.AOP.Processing
             arguments.isSetArguments = false;
             var property = type?.GetProperty(propertyName);
             arguments.property = property;
-
+ 
             var method = type.GetMethod("get_" + propertyName + APPENDIX);
             
             // Get start aspects and process them
@@ -289,6 +289,16 @@ namespace ITnnovative.AOP.Processing
             return arguments.returnValue;
         }
 
+        public static object OnMethodStart(object instance, Type type, string methodName, object[] args)
+        {
+            return null;
+        }
+        
+        public static object OnMethodComplete(object instance, Type type, string methodName, object[] args)
+        {
+            return null;
+        }
+        
         public static object OnMethod(object instance, Type type, string methodName, object[] args)
         {
             // Create arguments for aspects

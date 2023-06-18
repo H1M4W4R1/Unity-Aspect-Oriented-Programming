@@ -18,7 +18,7 @@ namespace ITnnovative.AOP.Sample.Objects
         {
             Debug.Log("Hello there!"); 
             Thread.Sleep(10);
-            TestMethod();
+            TestMethod();  
         }
 
         public void OnMouseDown()
