@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using ITnnovative.AOP.Attributes.Event;
+using ITnnovative.AOP.Attributes.Exceptions;
 using ITnnovative.AOP.Attributes.Method;
 using ITnnovative.AOP.Attributes.Property;
 using ITnnovative.AOP.Processing.Execution;
@@ -18,6 +19,7 @@ namespace ITnnovative.AOP.Processing
         public static void OnT<T>(object instance, AspectData data, Type type, string methodName, object[] args)
         {
             data.SetSource(instance);
+            var wasOk = data.HasErrored;
             
             var method = type.GetMethod(methodName);
             if (method == null) throw new Exception("We don't know what went wrong... But we know that it went terribly wrong.");
@@ -34,7 +36,7 @@ namespace ITnnovative.AOP.Processing
                 // Register argument or update value
                 data.SetArgument(index, pName, pValue);
             }
-
+            
             var aspects = method.GetCustomAttributes(typeof(T), true);
             foreach (var aspect in aspects)
             {
@@ -59,9 +61,25 @@ namespace ITnnovative.AOP.Processing
                     ((IEventBeforeListenerRemovedAspect) aspect).BeforeEventListenerRemoved(data);
                 if (typeof(IEventAfterListenerRemovedAspect).IsAssignableFrom(typeof(T)))
                     ((IEventAfterListenerRemovedAspect) aspect).AfterEventListenerRemoved(data);
+                
+                if (typeof(ICatchExceptionEnterAspect).IsAssignableFrom(typeof(T)))
+                    ((ICatchExceptionEnterAspect) aspect).ExceptionCatchBegan(data);
+                if (typeof(ICatchExceptionExitAspect).IsAssignableFrom(typeof(T)))
+                    ((ICatchExceptionExitAspect) aspect).ExceptionCatchEnded(data);
             }
 
-         
+            if (data.HasErrored && data.HasErrored != wasOk)
+            {
+                // Exceptions cannot be thrown by exception handling aspect (infinite loop)
+                if (typeof(ICatchExceptionEnterAspect).IsAssignableFrom(typeof(T)))
+                    return;
+                if (typeof(ICatchExceptionExitAspect).IsAssignableFrom(typeof(T)))
+                    return;
+                
+                data.SetException(ExceptionSource.Aspect, data.GetException());
+                OnT<ICatchExceptionEnterAspect>(instance, data, type, methodName, args);
+                OnT<ICatchExceptionExitAspect>(instance, data, type, methodName, args);
+            }
         }
 
         public static void OnMethodStart(object instance, AspectData data, Type type, string methodName, object[] args) =>
@@ -89,9 +107,16 @@ namespace ITnnovative.AOP.Processing
         
         public static void OnEventRemoveListenerEnter(object instance, AspectData data, Type type, string methodName, object[] args) =>
             OnT<IEventBeforeListenerRemovedAspect>(instance, data, type, methodName, args);
-
+        
         public static void OnEventRemoveListenerExit(object instance, AspectData data, Type type, string methodName, object[] args) =>
             OnT<IEventAfterListenerRemovedAspect>(instance, data, type, methodName, args);
+
+        public static void OnCatchExceptionEnterAspect(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<ICatchExceptionEnterAspect>(instance, data, type, methodName, args);
+        
+        public static void OnCatchExceptionExitAspect(object instance, AspectData data, Type type, string methodName, object[] args) =>
+            OnT<ICatchExceptionExitAspect>(instance, data, type, methodName, args);
+
 
     }
 }

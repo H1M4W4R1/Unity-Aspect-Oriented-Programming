@@ -11,6 +11,7 @@ using ITnnovative.AOP.Attributes.Event;
 using ITnnovative.AOP.Attributes.Method;
 using ITnnovative.AOP.Attributes.Property;
 using ITnnovative.AOP.Processing.Execution;
+using ITnnovative.AOP.Processing.Execution.Arguments;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
@@ -214,10 +215,8 @@ namespace ITnnovative.AOP.Processing.Editor
                     overrideMethod)));
             }
             
-            // Recover parameters from aspect return data TODO :FIX
+            // Recover parameters from aspect return data 
             var argField = GetMethod(adr, nameof(AspectData.GetArgument));
-            // newMethodBody.Add(Instruction.Create(OpCodes.Stloc_0)); // Removed into void
-
             for (var num = 0; num < method.Parameters.Count; num++)
             { 
                 var param = method.Parameters[num];
@@ -351,16 +350,34 @@ namespace ITnnovative.AOP.Processing.Editor
             var startInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, startMethod);
             var endInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, completeMethod);
 
+            var instructionZero = Instruction.Create(OpCodes.Nop);
+            
             // Create new AspectData object 
-            newMethodBody.Add(Instruction.Create(OpCodes.Nop));
+            newMethodBody.Add(instructionZero);
             newMethodBody.Add(Instruction.Create(OpCodes.Newobj, aDataCtor));
             newMethodBody.Add(Instruction.Create(OpCodes.Stloc_0));
-
+            
             // Create new body
             newMethodBody.AddRange(startInstructions);
-           
-            // TODO: Implement Try-Catch
             
+            // Create try-catch closure
+            var handlerNop = Instruction.Create(OpCodes.Nop);
+            var finishNop = Instruction.Create(OpCodes.Nop);
+
+            var tryLeave = Instruction.Create(OpCodes.Leave, handlerNop);
+            var catchLeave = Instruction.Create(OpCodes.Leave, finishNop);
+           
+            var handler = new ExceptionHandler (ExceptionHandlerType.Catch) {
+                TryStart = instructionZero,
+                TryEnd = handlerNop,
+                HandlerStart = handlerNop,
+                HandlerEnd = finishNop,
+                CatchType = module.ImportReference (typeof (Exception))
+                
+            };
+
+            
+            // Method body
             var iCount = method.Body.Instructions.Count;
             for (var index = 0; index < iCount; index++)
             {
@@ -404,22 +421,48 @@ namespace ITnnovative.AOP.Processing.Editor
                     }
                 }
 
+                // Shift locals
                 if (instr0.OpCode == OpCodes.Stloc)
                 {
-                    instr0 = Instruction.Create(OpCodes.Stloc, ((int) instr0.Operand) + 1);
+                    instr0 = Instruction.Create(OpCodes.Stloc, ((int) instr0.Operand) + 2);
                 }
                 else if (instr0.OpCode == OpCodes.Ldloc)
                 {
-                    instr0 = Instruction.Create(OpCodes.Stloc, ((int) instr0.Operand) + 1);
+                    instr0 = Instruction.Create(OpCodes.Stloc, ((int) instr0.Operand) + 2);
                 }
                 
                 // If does not return append instruction
                 newMethodBody.Add(instr0);
             }
+            
+            var adr = GetOrImportType(module, typeof(AspectData));
+            var setExceptionSource = GetMethod(adr, nameof(AspectData.SetException));
+            
+            // End try closure
+            newMethodBody.Add(tryLeave);
+            newMethodBody.Add(handlerNop);
+            newMethodBody.Add(Instruction.Create(OpCodes.Stloc_1));
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, (int) ExceptionSource.Method));
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_1)); // Stash exception
+            newMethodBody.Add(Instruction.Create(OpCodes.Callvirt, setExceptionSource));
+            
+            newMethodBody.AddRange(CreateAOPInjectableInstructions(assembly, module, type, method, null, nameof(AOPProcessor.OnCatchExceptionEnterAspect)));
+            newMethodBody.AddRange(CreateAOPInjectableInstructions(assembly, module, type, method, null, nameof(AOPProcessor.OnCatchExceptionExitAspect)));
+            newMethodBody.Add(catchLeave);
+            newMethodBody.Add(finishNop);
+            newMethodBody.Add(Instruction.Create(OpCodes.Ret));
+           
+            
+            // TODO: RET
 
             // Create variable at first spot
             var tempVar = new VariableDefinition(aData);
             method.Body.Variables.Insert(0, tempVar);
+            method.Body.Variables.Insert(1, new VariableDefinition(module.ImportReference(typeof(Exception))));
+            
+            // Register exception handlers
+            method.Body.ExceptionHandlers.Add(handler);
             
             // Update body
             method.Body.Instructions.Clear();

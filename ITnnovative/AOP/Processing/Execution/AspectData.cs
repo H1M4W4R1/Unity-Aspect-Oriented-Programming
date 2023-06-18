@@ -11,6 +11,7 @@ namespace ITnnovative.AOP.Processing.Execution
         private object _source;
         private Exception _exception;
         private object _returnValue;
+        private ExceptionSource _currentExceptionSource = ExceptionSource.None;
         
         public bool isGenerated = false;
 
@@ -18,6 +19,11 @@ namespace ITnnovative.AOP.Processing.Execution
         /// Arguments for methods
         /// </summary>
         private List<MethodArgument> Arguments { get; } = new List<MethodArgument>();
+
+        /// <summary>
+        /// All thrown exceptions
+        /// </summary>
+        private List<ThrownException> Exceptions { get; } = new List<ThrownException>();
 
         /// <summary>
         /// Get argument at position
@@ -93,6 +99,18 @@ namespace ITnnovative.AOP.Processing.Execution
         public Exception GetException() => null;
 
         /// <summary>
+        /// Register new exception
+        /// </summary>
+        public void SetException(ExceptionSource source, Exception exception)
+        {
+            _currentExceptionSource = source;
+            _exception = exception;
+            
+            // Register exception in stack
+            Exceptions.Add(new ThrownException(source, exception));
+        }
+
+        /// <summary>
         /// True if <see cref="Throw"/> has been used
         /// </summary>
         public bool HasErrored { get; private set; }
@@ -112,6 +130,7 @@ namespace ITnnovative.AOP.Processing.Execution
         /// </summary>
         public void Throw(Exception ex)
         {
+            _currentExceptionSource = ExceptionSource.Aspect;
             _exception = ex;
             HasErrored = true;
         }
@@ -139,6 +158,11 @@ namespace ITnnovative.AOP.Processing.Execution
         public T GetVariable<T>(string name)
         {
             return (T) _variables.FirstOrDefault(var => var.name.Equals(name))?.value;
+        }
+
+        public void SetExceptionSource(ExceptionSource src)
+        {
+            _currentExceptionSource = src;
         }
     }
 }
