@@ -7,7 +7,7 @@ namespace ITnnovative.AOP.Attributes.Method
         /// <summary>
         /// Invoked when the method is exiting
         /// </summary>
-        void OnMethodExit(MethodExecutionArguments args);
+        void OnMethodExit(BaseExecutionArgs args);
 
     }
 }

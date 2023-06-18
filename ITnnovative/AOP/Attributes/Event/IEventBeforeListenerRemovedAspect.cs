@@ -4,6 +4,6 @@ namespace ITnnovative.AOP.Attributes.Event
 {
     public interface IEventBeforeListenerRemovedAspect : IEventRemovedListenerAspect
     {
-        void BeforeEventListenerRemoved(EventExecutionArguments arguments);
+        void BeforeEventListenerRemoved(BaseExecutionArgs arguments);
     }
 }

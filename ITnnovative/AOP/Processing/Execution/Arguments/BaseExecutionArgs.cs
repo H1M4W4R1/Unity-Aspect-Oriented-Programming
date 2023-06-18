@@ -10,6 +10,10 @@ namespace ITnnovative.AOP.Processing.Execution.Arguments
         /// Source object of this call (null if method is static)
         /// </summary>
         public object source;
+
+        public List<MethodArgument> arguments;
+
+        public object returnValue;
         
         /// <summary>
         /// Adds variable to arguments
@@ -31,6 +35,11 @@ namespace ITnnovative.AOP.Processing.Execution.Arguments
         /// Checks if method has errored
         /// </summary>
         public bool HasErrored => exception != null;
+
+        /// <summary>
+        /// Defines if args have return value
+        /// </summary>
+        public bool hasReturned = false;
         
         /// <summary>
         /// Custom variables for storing data

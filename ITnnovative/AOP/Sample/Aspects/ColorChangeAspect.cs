@@ -12,7 +12,7 @@ namespace ITnnovative.AOP.Sample.Aspects
     {
         private Color _newColor;
         
-        public void OnMethodEnter(MethodExecutionArguments args)
+        public void OnMethodEnter(BaseExecutionArgs args)
         {
             var go = (MonoBehaviour) args.source;
             go.GetComponent<Renderer>().material.color = _newColor;

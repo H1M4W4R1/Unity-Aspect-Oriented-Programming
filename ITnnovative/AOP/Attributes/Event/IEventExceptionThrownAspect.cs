@@ -4,10 +4,10 @@ using ITnnovative.AOP.Processing.Execution.Arguments;
 
 namespace ITnnovative.AOP.Attributes.Event
 {
-    public interface IEventExceptionThrownAspect : IMethodAspect
+    public interface IEventExceptionThrownAspect
     {
 
-        void OnExceptionThrown(Exception exception, EventExecutionArguments args);
+        void OnExceptionThrown(Exception exception, BaseExecutionArgs args);
 
     }
 }

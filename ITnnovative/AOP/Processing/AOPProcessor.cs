@@ -6,8 +6,6 @@ using ITnnovative.AOP.Attributes.Method;
 using ITnnovative.AOP.Attributes.Property;
 using ITnnovative.AOP.Processing.Execution;
 using ITnnovative.AOP.Processing.Execution.Arguments;
-using ITnnovative.AOP.Processing.Execution.Arguments.Enums;
-using UnityEngine;
 
 namespace ITnnovative.AOP.Processing
 {
@@ -16,110 +14,100 @@ namespace ITnnovative.AOP.Processing
     /// </summary>
     public static class AOPProcessor
     {
-      
-        public const string APPENDIX = "_UAOP";
-
-        public static void BeforeEventInvoked(object instance, Type type, string eventName)
-        {
-            var arguments = new EventExecutionArguments();
-            arguments.source = instance;
-            var evt = type?.GetEvent(eventName);
-            arguments.executionType = EventExecutionType.Invoke;
-            arguments.eventObject = evt;
-            arguments.arguments = null;
-            
-            var startAspects = evt.GetCustomAttributes(typeof(IBeforeEventInvokedAspect), true);
-            
-            foreach (var aspect in startAspects)
-            {
-                ((IBeforeEventInvokedAspect) aspect).BeforeEventInvoked(arguments);
-            }
-        }
-
-        public static void AfterEventInvoked(object instance, Type type, string eventName)
-        {
-            var arguments = new EventExecutionArguments();
-            arguments.source = instance;
-            var evt = type?.GetEvent(eventName);
-            arguments.executionType = EventExecutionType.Invoke;
-            arguments.eventObject = evt;
-            arguments.arguments = null;
-            
-            var startAspects = evt.GetCustomAttributes(typeof(IAfterEventInvokedAspect), true);
-            
-            foreach (var aspect in startAspects)
-            {
-                ((IAfterEventInvokedAspect) aspect).BeforeEventInvoked(arguments);
-            }
-        } 
-        
-        public static AspectData OnMethodStart(object instance, Type type, string methodName, object[] args)
+        public static AspectData OnT<T>(object instance, Type type, string methodName, object[] args)
         {
             var method = type.GetMethod(methodName);
+            if (method == null) throw new Exception("We don't know what went wrong... But we know that it went terribly wrong.");
             
-            var arguments = new MethodExecutionArguments();
-            arguments.source = instance;
-
             // Parse parameters
             var mParam = method.GetParameters();
+
+            var aa = new List<MethodArgument>();
 
             // Generate arguments for execution args
             for (var index = 0; index < args.Length; index++)
             {
                 var pValue = args[index];
                 var pName = mParam[index].Name;
-                arguments.arguments.Add(new MethodArgument(pName, pValue));
+                aa.Add(new MethodArgument(pName, pValue));
             }
-            
-            var aspects = method.GetCustomAttributes(typeof(IMethodEnterAspect), true);
+
+            var arguments = new BaseExecutionArgs()
+                {source = instance, arguments = aa};
+
+            var aspects = method.GetCustomAttributes(typeof(T), true);
             foreach (var aspect in aspects)
             {
-                ((IMethodEnterAspect) aspect).OnMethodEnter(arguments);
+                // A nice tree of available aspect bases ;)
+                if (typeof(IMethodEnterAspect).IsAssignableFrom(typeof(T)))
+                    ((IMethodEnterAspect) aspect).OnMethodEnter(arguments);
+                if (typeof(IMethodExitAspect).IsAssignableFrom(typeof(T)))
+                    ((IMethodExitAspect) aspect).OnMethodExit(arguments);
+                if (typeof(IPropertyGetEnterAspect).IsAssignableFrom(typeof(T)))
+                    ((IPropertyGetEnterAspect) aspect).OnPropertyGetEnter(arguments);
+                if (typeof(IPropertyGetExitAspect).IsAssignableFrom(typeof(T)))
+                    ((IPropertyGetExitAspect) aspect).OnPropertyGetExit(arguments);
+                if (typeof(IPropertySetEnterAspect).IsAssignableFrom(typeof(T)))
+                    ((IPropertySetEnterAspect) aspect).OnPropertySetEnter(arguments);
+                if (typeof(IPropertySetExitAspect).IsAssignableFrom(typeof(T)))
+                    ((IPropertySetExitAspect) aspect).OnPropertySetExit(arguments);
+                if (typeof(IEventAfterInvokedAspect).IsAssignableFrom(typeof(T)))
+                    ((IEventAfterInvokedAspect) aspect).AfterEventInvoked(arguments);
+                if (typeof(IEventBeforeInvokedAspect).IsAssignableFrom(typeof(T)))
+                    ((IEventBeforeInvokedAspect) aspect).BeforeEventInvoked(arguments);
+                if (typeof(IEventBeforeListenerAddedAspect).IsAssignableFrom(typeof(T)))
+                    ((IEventBeforeListenerAddedAspect) aspect).BeforeEventListenerAdded(arguments);
+                if (typeof(IEventAfterListenerAddedAspect).IsAssignableFrom(typeof(T)))
+                    ((IEventAfterListenerAddedAspect) aspect).AfterEventListenerAdded(arguments);
+                if (typeof(IEventBeforeListenerRemovedAspect).IsAssignableFrom(typeof(T)))
+                    ((IEventBeforeListenerRemovedAspect) aspect).BeforeEventListenerRemoved(arguments);
+                if (typeof(IEventAfterListenerRemovedAspect).IsAssignableFrom(typeof(T)))
+                    ((IEventAfterListenerRemovedAspect) aspect).AfterEventListenerRemoved(arguments);
             }
-            
-            // TODO: HasReturned IMPL
+
             return new AspectData()
             {
                 arguments = arguments.arguments.Select(q => q.value).ToArray(),
                 hasErrored = arguments.HasErrored,
                 returnValue = arguments.returnValue,
-                thrownException = arguments.exception
+                thrownException = arguments.exception,
+                hasReturned = arguments.hasReturned
             };
         }
+
+        public static AspectData OnMethodStart(object instance, Type type, string methodName, object[] args) =>
+            OnT<IMethodEnterAspect>(instance, type, methodName, args);
+        public static AspectData OnMethodComplete(object instance, Type type, string methodName, object[] args) =>
+            OnT<IMethodExitAspect>(instance, type, methodName, args);
         
-        public static AspectData OnMethodComplete(object instance, Type type, string methodName, object[] args)
-        {
-            var method = type.GetMethod(methodName);
-            
-            var arguments = new MethodExecutionArguments();
-            arguments.source = instance;
+        public static AspectData OnPropertyGetEnter(object instance, Type type, string methodName, object[] args) =>
+            OnT<IPropertyGetEnterAspect>(instance, type, methodName, args);
 
-            // Parse parameters
-            var mParam = method.GetParameters();
+        public static AspectData OnPropertyGetExit(object instance, Type type, string methodName, object[] args) =>
+            OnT<IPropertyGetExitAspect>(instance, type, methodName, args);
+        
+        public static AspectData OnPropertySetEnter(object instance, Type type, string methodName, object[] args) =>
+            OnT<IPropertySetEnterAspect>(instance, type, methodName, args);
 
-            // Generate arguments for execution args
-            for (var index = 0; index < args.Length; index++)
-            {
-                var pValue = args[index];
-                var pName = mParam[index].Name;
-                arguments.arguments.Add(new MethodArgument(pName, pValue));
-            }
-            
-            var aspects = method.GetCustomAttributes(typeof(IMethodExitAspect), true);
-            foreach (var aspect in aspects)
-            {
-                ((IMethodExitAspect) aspect).OnMethodExit(arguments);
-            }
-            
-            // TODO: HasReturned IMPL
-            return new AspectData()
-            {
-                arguments = arguments.arguments.Select(q => q.value).ToArray(),
-                hasErrored = arguments.HasErrored,
-                returnValue = arguments.returnValue,
-                thrownException = arguments.exception
-            };
-        }
+        public static AspectData OnPropertySetExit(object instance, Type type, string methodName, object[] args) =>
+            OnT<IPropertySetExitAspect>(instance, type, methodName, args);
+        
+        public static AspectData OnEventAddListenerEnter(object instance, Type type, string methodName, object[] args) =>
+            OnT<IEventBeforeListenerAddedAspect>(instance, type, methodName, args);
 
+        public static AspectData OnEventAddListenerExit(object instance, Type type, string methodName, object[] args) =>
+            OnT<IEventAfterListenerAddedAspect>(instance, type, methodName, args);
+        
+        public static AspectData OnEventRemoveListenerEnter(object instance, Type type, string methodName, object[] args) =>
+            OnT<IEventBeforeListenerRemovedAspect>(instance, type, methodName, args);
+
+        public static AspectData OnEventRemoveListenerExit(object instance, Type type, string methodName, object[] args) =>
+            OnT<IEventAfterListenerRemovedAspect>(instance, type, methodName, args);
+        
+        public static AspectData OnEventInvokeEnter(object instance, Type type, string methodName, object[] args) =>
+            OnT<IEventBeforeInvokedAspect>(instance, type, methodName, args);
+
+        public static AspectData OnEventInvokeExit(object instance, Type type, string methodName, object[] args) =>
+            OnT<IEventAfterInvokedAspect>(instance, type, methodName, args);
     }
 }

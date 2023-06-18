@@ -4,6 +4,6 @@ namespace ITnnovative.AOP.Attributes.Event
 {
     public interface IEventBeforeListenerAddedAspect : IEventAddedListenerAspect
     {
-        void BeforeEventListenerAdded(EventExecutionArguments arguments);
+        void BeforeEventListenerAdded(BaseExecutionArgs arguments);
     }
 }
