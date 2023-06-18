@@ -282,7 +282,7 @@ namespace ITnnovative.AOP.Processing.Editor
                     overrideMethod)));
             }
             
-            var argField = typeof(AspectReturnData).GetField(nameof(AspectReturnData.arguments));
+            var argField = typeof(AspectData).GetField(nameof(AspectData.arguments));
             newMethodBody.Add(Instruction.Create(OpCodes.Stloc_0));
 
             // Recover parameters from aspect return data
@@ -340,10 +340,10 @@ namespace ITnnovative.AOP.Processing.Editor
                 }
             }
             
-            var retField = typeof(AspectReturnData).GetField(nameof(AspectReturnData.hasReturned));
-            var retValueField = typeof(AspectReturnData).GetField(nameof(AspectReturnData.returnValue));
-            var errField = typeof(AspectReturnData).GetField(nameof(AspectReturnData.hasErrored));
-            var excField = typeof(AspectReturnData).GetField(nameof(AspectReturnData.thrownException));
+            var retField = typeof(AspectData).GetField(nameof(AspectData.hasReturned));
+            var retValueField = typeof(AspectData).GetField(nameof(AspectData.returnValue));
+            var errField = typeof(AspectData).GetField(nameof(AspectData.hasErrored));
+            var excField = typeof(AspectData).GetField(nameof(AspectData.thrownException));
 
             var gamma = Instruction.Create(OpCodes.Ldloc_0);
             var delta = Instruction.Create(OpCodes.Nop);
@@ -439,7 +439,7 @@ namespace ITnnovative.AOP.Processing.Editor
             }
 
             // Create variable at first spot
-            var tempVar = new VariableDefinition(module.ImportReference(typeof(AspectReturnData)));
+            var tempVar = new VariableDefinition(module.ImportReference(typeof(AspectData)));
             method.Body.Variables.Insert(0, tempVar);
             
             // Update body

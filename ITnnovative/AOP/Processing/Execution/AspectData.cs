@@ -2,7 +2,7 @@
 
 namespace ITnnovative.AOP.Processing.Execution
 {
-    public class AspectReturnData
+    public class AspectData
     {
 
         public object[] arguments;

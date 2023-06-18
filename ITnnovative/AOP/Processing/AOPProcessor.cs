@@ -289,12 +289,61 @@ namespace ITnnovative.AOP.Processing
             return arguments.returnValue;
         }
 
-        public static AspectReturnData OnMethodStart(object instance, Type type, string methodName, object[] args)
+        public static AspectData OnMethodStart(object instance, Type type, string methodName, object[] args)
         {
+            /*// Create arguments for aspects
+            var arguments = new MethodExecutionArguments();
+            arguments.source = instance;
+
+            // Get types for args
+            var typeArray = new List<Type>();
+            foreach (var o in args)
+            {
+                if (o != null)
+                {
+                    typeArray.Add(o.GetType());
+                }
+            }
+            
+            // Get methods and generate generic versions for invocation
+            var genericTypes = null as List<Type>;
+           
+            var containingMethod = type?.GetMethod(methodName, typeArray, out genericTypes);
+            if(genericTypes.Count > 0)
+                containingMethod = containingMethod.MakeGenericMethod(genericTypes.ToArray());
+            
+            // Load data
+            arguments.rootMethod = containingMethod;
+            var mParam = containingMethod.GetParameters();
+
+            // Generate arguments for execution args
+            for (var index = 0; index < args.Length; index++)
+            {
+                var pValue = args[index];
+                var pName = mParam[index].Name;
+                arguments.arguments.Add(new MethodArgument(pName, pValue));
+            }
+
+            // Get start aspects and process them
+            var startAspects = containingMethod.GetCustomAttributes(typeof(IMethodEnterAspect), true);
+            
+            foreach (var aspect in startAspects)
+            {
+                ((IMethodEnterAspect) aspect).OnMethodEnter(arguments);
+            }
+            
+            // TODO: HasReturned IMPL
+            return new AspectData()
+            {
+                arguments = arguments.arguments.Select(q => q.value).ToArray(),
+                hasErrored = arguments.HasErrored,
+                returnValue = arguments.returnValue,
+                thrownException = arguments.exception
+            };*/
             return null;
         }
         
-        public static AspectReturnData OnMethodComplete(object instance, Type type, string methodName, object[] args)
+        public static AspectData OnMethodComplete(object instance, Type type, string methodName, object[] args)
         {
             return null;
         }
