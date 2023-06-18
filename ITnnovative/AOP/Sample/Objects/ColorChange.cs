@@ -7,9 +7,9 @@ namespace ITnnovative.AOP.Sample.Objects
     public class ColorChange : MonoBehaviour
     {
         private int _counter = 0;
-
-        public void OnMouseDown()
-        {
+ 
+        public void OnMouseDown() 
+        { 
             if (_counter == 0)
             {
                 SetRed();
@@ -17,13 +17,13 @@ namespace ITnnovative.AOP.Sample.Objects
             }
             else
             {
-                SetWhite();
+                SetWhite();  
                 _counter--;
-            }
-        }
-
+            }  
+        } 
+   
         [ColorChangeAspect(1, 0, 0, 1)]
-        public void SetRed(){} 
+        public void SetRed(){}      
 
         [ColorChangeAspect(1, 1, 1, 1)]
         public void SetWhite(){}

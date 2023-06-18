@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
 using ITnnovative.AOP.Attributes;
 using ITnnovative.AOP.Attributes.Event;
 using ITnnovative.AOP.Attributes.Method;
@@ -15,6 +17,7 @@ using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
 using Newtonsoft.Json;
 using Unity.VisualScripting;
+using Unity.VisualScripting.FullSerializer.Internal;
 using UnityEditor;
 using UnityEngine;
 using MethodAttributes = Mono.Cecil.MethodAttributes;
@@ -115,9 +118,6 @@ namespace ITnnovative.AOP.Processing.Editor
                     }
                 }
             }
-            
-            assembly.Write();			
-            assembly.Dispose();
         }
 
         public static void EncapsulateEventExecution(ModuleDefinition module, TypeDefinition type, EventDefinition evt)
@@ -210,8 +210,10 @@ namespace ITnnovative.AOP.Processing.Editor
 
         public static List<Instruction> CreateAOPInjectableInstructions(AssemblyDefinition assembly, ModuleDefinition module,
             TypeDefinition type, MethodDefinition method, string overrideName = null, string overrideMethod =
-            nameof(AOPProcessor.OnMethod))
+            nameof(AOPProcessor.OnMethodStart))
         {
+            var adr = GetOrImportType(module, typeof(AspectData));
+            
             // New body for current method (capsule)
             var newMethodBody = new List<Instruction>();
             newMethodBody.Add(Instruction.Create(method.IsStatic ? OpCodes.Ldnull : OpCodes.Ldarg_0)); // ldnull / ldarg_0
@@ -282,7 +284,7 @@ namespace ITnnovative.AOP.Processing.Editor
                     overrideMethod)));
             }
             
-            var argField = typeof(AspectData).GetField(nameof(AspectData.arguments));
+            var argField = GetField(adr, nameof(AspectData.arguments));
             newMethodBody.Add(Instruction.Create(OpCodes.Stloc_0));
 
             // Recover parameters from aspect return data
@@ -295,7 +297,7 @@ namespace ITnnovative.AOP.Processing.Editor
                     newMethodBody.Add(Instruction.Create(OpCodes.Ldarg, param));
 
                 newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));
-                newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, module.ImportReference(argField)));
+                newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, argField));
                 newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, num));
                 newMethodBody.Add(Instruction.Create(OpCodes.Ldelem_Ref));
 
@@ -340,31 +342,36 @@ namespace ITnnovative.AOP.Processing.Editor
                 }
             }
             
-            var retField = typeof(AspectData).GetField(nameof(AspectData.hasReturned));
-            var retValueField = typeof(AspectData).GetField(nameof(AspectData.returnValue));
-            var errField = typeof(AspectData).GetField(nameof(AspectData.hasErrored));
-            var excField = typeof(AspectData).GetField(nameof(AspectData.thrownException));
+            var retField = GetField(adr, nameof(AspectData.hasReturned));
+            var retValueField = GetField(adr, nameof(AspectData.returnValue));
+            var errField = GetField(adr, nameof(AspectData.hasErrored));
+            var excField = GetField(adr, nameof(AspectData.thrownException));
 
             var gamma = Instruction.Create(OpCodes.Ldloc_0);
             var delta = Instruction.Create(OpCodes.Nop);
             
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));            
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, module.ImportReference(retField)));
-            newMethodBody.Add(Instruction.Create(OpCodes.Brfalse, gamma)); // TODO: JUMP TARGET
-            
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));  
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, module.ImportReference(retValueField)));
-            newMethodBody.Add(method.ReturnType.IsValueType
-                ? Instruction.Create(OpCodes.Unbox_Any, method.ReturnType)
-                : Instruction.Create(OpCodes.Castclass, method.ReturnType));
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));        
+            // BUG: Unity does not reload assembly due to self-reference
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, retField));
+            newMethodBody.Add(Instruction.Create(OpCodes.Brfalse, gamma)); 
+
+            if (method.ReturnType != module.TypeSystem.Void)
+            {
+                newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));
+                newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, retValueField));
+                newMethodBody.Add(method.ReturnType.IsValueType
+                    ? Instruction.Create(OpCodes.Unbox_Any, method.ReturnType)
+                    : Instruction.Create(OpCodes.Castclass, method.ReturnType));
+                newMethodBody.Add(Instruction.Create(OpCodes.Pop));
+            }
             newMethodBody.Add(Instruction.Create(OpCodes.Ret));
             
             newMethodBody.Add(gamma);
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, module.ImportReference(errField)));
-            newMethodBody.Add(Instruction.Create(OpCodes.Brfalse, delta)); // TODO: JUMP TARGET
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, errField));
+            newMethodBody.Add(Instruction.Create(OpCodes.Brfalse, delta)); 
             
             newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));  
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, module.ImportReference(excField)));
+            newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, excField));
             newMethodBody.Add(Instruction.Create(OpCodes.Throw));
 
             newMethodBody.Add(delta);
@@ -372,6 +379,26 @@ namespace ITnnovative.AOP.Processing.Editor
             return newMethodBody;
         }
 
+        private static FieldDefinition GetField(TypeDefinition qType, string fName)
+        {
+            return qType.Fields.FirstOrDefault(f => f.Name == fName);
+        }
+
+        private static TypeDefinition GetOrImportType(ModuleDefinition module, Type t)
+        {
+            var types = module.GetTypes().ToList();
+            foreach (var type in types)
+            {
+                if (type.FullName.Equals(t.FullName))
+                { 
+                    return type;
+                }
+            }
+
+            throw new DllNotFoundException();
+            //return module.ImportReference(t).Resolve();
+        }
+        
         private static void WrapEncapsulateMethod(AssemblyDefinition assembly, ModuleDefinition module,
             TypeDefinition type, MethodDefinition method, string overrideName = null)
         {
@@ -437,100 +464,15 @@ namespace ITnnovative.AOP.Processing.Editor
                 // If does not return append instruction
                 newMethodBody.Add(instr0);
             }
-
+ 
             // Create variable at first spot
-            var tempVar = new VariableDefinition(module.ImportReference(typeof(AspectData)));
+            var tempVar = new VariableDefinition(GetOrImportType(module, typeof(AspectData)));
             method.Body.Variables.Insert(0, tempVar);
             
             // Update body
             method.Body.Instructions.Clear();
             method.Body.Instructions.AddRange(newMethodBody);
             newMethodBody.Clear();
-        }
-        
-        private static void EncapsulateMethod(AssemblyDefinition assembly, ModuleDefinition module, 
-            TypeDefinition type, MethodDefinition method, string overrideName = null, string overrideMethod =
-                nameof(AOPProcessor.OnMethod))
-        {
-            // New body for current method (capsule)
-            var newMethodBody = new List<Instruction>();
-            newMethodBody.Add(Instruction.Create(method.IsStatic ? OpCodes.Ldnull : OpCodes.Ldarg_0)); // ldnull / ldarg_0
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldtoken, type));
-            newMethodBody.Add(Instruction.Create(OpCodes.Call, typeof(Type).GetMonoMethod(module, nameof(Type.GetTypeFromHandle))));
-
-            var mName = method.Name;
-            if (!string.IsNullOrEmpty(overrideName))
-                mName = overrideName;
-            
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldstr, mName));
-            newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, method.Parameters.Count));
-            newMethodBody.Add(Instruction.Create(OpCodes.Newarr, module.ImportReference(typeof(object))));
-
-            for (var num = 0; num < method.Parameters.Count; num++)
-            {
-                var param = method.Parameters[num];
-                var pType = param.ParameterType;
-
-                newMethodBody.Add(Instruction.Create(OpCodes.Dup));
-                newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, num));
-                newMethodBody.Add(Instruction.Create(OpCodes.Ldarg, param));
-                if(param.ParameterType.IsValueType || param.ParameterType.IsGenericParameter)
-                    newMethodBody.Add(Instruction.Create(OpCodes.Box, pType));
-                newMethodBody.Add(Instruction.Create(OpCodes.Stelem_Ref));
-            }
-            
-            
-            if(module.HasType(typeof(AOPProcessor))){
-                newMethodBody.Add(Instruction.Create(OpCodes.Call,
-                    module.GetType(typeof(AOPProcessor))
-                    .GetMethod(overrideMethod)));
-            }
-            else
-            {
-                newMethodBody.Add(Instruction.Create(OpCodes.Call, typeof(AOPProcessor).GetMonoMethod(module, 
-                    overrideMethod)));
-            }
- 
-            if (method.ReturnType.FullName != typeof(void).FullName)
-            {
-                if (method.ReturnType.IsValueType)
-                {
-                    newMethodBody.Add(Instruction.Create(OpCodes.Unbox_Any, method.ReturnType));
-                }
-            }
-            else
-            {
-                newMethodBody.Add(Instruction.Create(OpCodes.Pop));
-            }
-                
-            newMethodBody.Add(Instruction.Create(OpCodes.Ret));
-
-            // Create new method
-            var internalMethod = new MethodDefinition(method.Name + AOPProcessor.APPENDIX, method.Attributes, method.ReturnType);
-            foreach (var param in method.Parameters)
-            {
-                var newParam = new ParameterDefinition(param.Name, param.Attributes, param.ParameterType);
-                newParam.HasDefault = false;
-                newParam.IsOptional = false; 
-                internalMethod.Parameters
-                    .Add(newParam);
-            }  
-
-            // Copy generic parameters
-            foreach (var genericParameter in method.GenericParameters)
-            {
-                internalMethod.GenericParameters
-                    .Add(new GenericParameter(genericParameter.Name, internalMethod));
-            }
-            
-            var bodyClone = new MethodBody(method);
-            bodyClone.AppendInstructions(newMethodBody);
-            bodyClone.MaxStackSize = 8;
-            
-            // Replace method bodies
-            internalMethod.Body = method.Body;
-            method.Body = bodyClone;
-            type.Methods.Add(internalMethod);
         }
         
         /// <summary>
@@ -560,26 +502,53 @@ namespace ITnnovative.AOP.Processing.Editor
         /// <param name="dllFiles">Files to weave. Must be *.dll</param>
         public static void WeaveAssembliesAtPaths(string[] dllFiles)
         {
+            // Construct resolvers
+            var resolver = new DefaultAssemblyResolver();
+            var mdResolver = new MetadataResolver(resolver);
+
+            var paths = new List<string>();
+            
+            // add .NET runtime dir for the sake of security
+            foreach (var dir in Directory.GetDirectories(RuntimeEnvironment.GetRuntimeDirectory(), 
+                         "*", SearchOption.AllDirectories))
+            {
+                resolver.AddSearchDirectory(dir);
+            }
+            
+            foreach (var dir in dllFiles)
+            {
+                var path = Path.GetDirectoryName(dir);
+                if (!paths.Contains(path)) paths.Add(path);
+            }
+            
+            foreach(var dir in paths)
+                resolver.AddSearchDirectory(dir);
+
+            
             Debug.Log($"[Unity AOP] Weaving assemblies...");
             foreach (var filePath in dllFiles)
             {
                 
+                // In debug mode weave only CSharp DLLs (skip all PlasticSCM etc.)
                 #if DEBUG_MODE
                     if (!filePath.Contains("CSharp")) continue;    
                 #endif
                 
                 Debug.Log($"[Unity AOP] Weaving {filePath}");
-                try
+                try 
                 {
                     // Ignore MONO Cecil
                     if (filePath.Contains("Mono.Cecil.Rocks.dll") ||
                         filePath.Contains("Mono.Cecil.dll") ||
                         filePath.Contains("Newtonsoft.Json.dll")) return;
 
-                    var assembly = AssemblyDefinition.ReadAssembly(filePath, new ReaderParameters {ReadWrite = true});
-
-
+                    var assembly = AssemblyDefinition.ReadAssembly(filePath, new ReaderParameters {ReadWrite = true, 
+                        AssemblyResolver = resolver, MetadataResolver = mdResolver});
+                    
                     WeaveAssembly(assembly);
+   
+                    assembly.Write();			
+                    assembly.Dispose();
                 }
                 catch (Exception ex)
                 {
