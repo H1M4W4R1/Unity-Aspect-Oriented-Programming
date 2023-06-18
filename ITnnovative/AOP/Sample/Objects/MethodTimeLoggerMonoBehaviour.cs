@@ -21,14 +21,14 @@ namespace ITnnovative.AOP.Sample.Objects
             TestMethod();  
         }
 
-        public void OnMouseDown()
+        public void OnMouseDown()  
         {
             TestMethod();
         }
 
         [MethodTimeLogger]
         [ContextMenu("TestMethod")]
-        public void TestMethod()
+        public void TestMethod() 
         {
             Debug.Log("Sleeping for 50ms"); 
             Thread.Sleep(50);
@@ -39,7 +39,7 @@ namespace ITnnovative.AOP.Sample.Objects
         [MethodTimeLogger]
         public void TestMethod<T>(T sleepTime)
         {
-            Debug.Log("Sleeping for: " + sleepTime); 
+            Debug.Log("Sleeping for: " + sleepTime);     
             if (sleepTime is int)
             {
                 Thread.Sleep(Convert.ToInt32(sleepTime));

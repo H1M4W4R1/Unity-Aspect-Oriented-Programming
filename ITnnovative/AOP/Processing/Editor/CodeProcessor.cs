@@ -1,4 +1,6 @@
-﻿using System;
+﻿#define DEBUG_MODE
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
@@ -7,6 +9,7 @@ using ITnnovative.AOP.Attributes;
 using ITnnovative.AOP.Attributes.Event;
 using ITnnovative.AOP.Attributes.Method;
 using ITnnovative.AOP.Attributes.Property;
+using ITnnovative.AOP.Processing.Execution;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
@@ -231,6 +234,38 @@ namespace ITnnovative.AOP.Processing.Editor
                 newMethodBody.Add(Instruction.Create(OpCodes.Dup));
                 newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, num));
                 newMethodBody.Add(Instruction.Create(OpCodes.Ldarg, param));
+                
+                if (pType.IsByReference)
+                    // Dereference
+                {
+                    var pElementTypeName = pType.GetElementType().FullName;
+                    switch (pElementTypeName)
+                    {
+                        case "System.Int8":
+                            newMethodBody.Add(Instruction.Create(OpCodes.Ldind_I1));
+                            break;
+                        case "System.Int16":
+                            newMethodBody.Add(Instruction.Create(OpCodes.Ldind_I2));
+                            break;
+                        case "System.Int32":
+                            newMethodBody.Add(Instruction.Create(OpCodes.Ldind_I4));
+                            break;
+                        case "System.Int64": 
+                            newMethodBody.Add(Instruction.Create(OpCodes.Ldind_I8));
+                            break;
+                        case "System.Single":
+                            newMethodBody.Add(Instruction.Create(OpCodes.Ldind_R4));
+                            break;
+                        case "System.Double":
+                            newMethodBody.Add(Instruction.Create(OpCodes.Ldind_R8));
+                            break;
+                        default:
+                            newMethodBody.Add(Instruction.Create(OpCodes.Ldind_Ref));
+                            break;
+                    }
+                    
+                }
+                
                 if(param.ParameterType.IsValueType || param.ParameterType.IsGenericParameter)
                     newMethodBody.Add(Instruction.Create(OpCodes.Box, pType));
                 newMethodBody.Add(Instruction.Create(OpCodes.Stelem_Ref));
@@ -247,6 +282,92 @@ namespace ITnnovative.AOP.Processing.Editor
                     overrideMethod)));
             }
             
+            var argField = typeof(AspectReturnData).GetField(nameof(AspectReturnData.arguments));
+            newMethodBody.Add(Instruction.Create(OpCodes.Stloc_0));
+
+            // Recover parameters from aspect return data
+            for (var num = 0; num < method.Parameters.Count; num++)
+            { 
+                var param = method.Parameters[num];
+                var pType = param.ParameterType;
+
+                if (pType.IsByReference)
+                    newMethodBody.Add(Instruction.Create(OpCodes.Ldarg, param));
+
+                newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));
+                newMethodBody.Add(Instruction.Create(OpCodes.Ldfld, module.ImportReference(argField)));
+                newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, num));
+                newMethodBody.Add(Instruction.Create(OpCodes.Ldelem_Ref));
+
+                if(pType.IsValueType)
+                    newMethodBody.Add(Instruction.Create(OpCodes.Unbox_Any, pType));
+                else if(!pType.IsByReference)
+                    newMethodBody.Add(Instruction.Create(OpCodes.Castclass, pType));
+                
+                if (pType.IsByReference)
+                    // Dereference
+                {
+                    var pElementTypeName = pType.GetElementType().FullName;
+                    switch (pElementTypeName)
+                    {
+                        case "System.Int8":
+                            newMethodBody.Add(Instruction.Create(OpCodes.Stind_I1));
+                            break;
+                        case "System.Int16":
+                            newMethodBody.Add(Instruction.Create(OpCodes.Stind_I2));
+                            break;
+                        case "System.Int32":
+                            newMethodBody.Add(Instruction.Create(OpCodes.Stind_I4));
+                            break;
+                        case "System.Int64": 
+                            newMethodBody.Add(Instruction.Create(OpCodes.Stind_I8));
+                            break;
+                        case "System.Single":
+                            newMethodBody.Add(Instruction.Create(OpCodes.Stind_R4));
+                            break;
+                        case "System.Double":
+                            newMethodBody.Add(Instruction.Create(OpCodes.Stind_R8));
+                            break;
+                        default:
+                            newMethodBody.Add(Instruction.Create(OpCodes.Stind_Ref));
+                            break;
+                    }
+                    
+                }
+                else
+                {
+                    newMethodBody.Add(Instruction.Create(OpCodes.Starg_S, param));
+                }
+                
+                
+            }
+            
+            // ldloc.0
+            // ldfld <bool> hasReturned
+            // stloc.1
+            // ldloc.1
+            // brfalse.s <jump_over_next_block>
+            
+            // ldloc.0
+            // ldfld <object> returnValue
+            // unbox.any <T> / castclass<T>
+            // stloc.2
+            // ldloc.2
+            // ret
+            
+            // ldloc.0
+            // ldfld <bool> hasErrored;
+            // stloc.3
+            // ldloc.3
+            // brfalse.s jump_over
+            // ldloc.0
+            // ldfld <Exception> thrownException
+            // throw
+            
+            
+                
+            
+            
             // TODO: unpack returned object into array replacing arguments, check if returning => return, check for error => throw
             
             return newMethodBody;
@@ -259,9 +380,7 @@ namespace ITnnovative.AOP.Processing.Editor
             var startInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, nameof(AOPProcessor.OnMethodStart));
             var endInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName,
                 nameof(AOPProcessor.OnMethodComplete));
-            
-            // TODO: shift all locals by +1 (to stash place for first slot)
-            
+
             // Create new body
             newMethodBody.AddRange(startInstructions);
             var iCount = method.Body.Instructions.Count;
@@ -306,12 +425,23 @@ namespace ITnnovative.AOP.Processing.Editor
                         continue;
                     }
                 }
+
+                if (instr0.OpCode == OpCodes.Stloc)
+                {
+                    instr0 = Instruction.Create(OpCodes.Stloc, ((int) instr0.Operand) + 1);
+                }
+                else if (instr0.OpCode == OpCodes.Ldloc)
+                {
+                    instr0 = Instruction.Create(OpCodes.Stloc, ((int) instr0.Operand) + 1);
+                }
                 
                 // If does not return append instruction
                 newMethodBody.Add(instr0);
             }
 
-            // TODO: register local at first spot
+            // Create variable at first spot
+            var tempVar = new VariableDefinition(module.ImportReference(typeof(AspectReturnData)));
+            method.Body.Variables.Insert(0, tempVar);
             
             // Update body
             method.Body.Instructions.Clear();
@@ -434,6 +564,11 @@ namespace ITnnovative.AOP.Processing.Editor
             Debug.Log($"[Unity AOP] Weaving assemblies...");
             foreach (var filePath in dllFiles)
             {
+                
+                #if DEBUG_MODE
+                    if (!filePath.Contains("CSharp")) continue;    
+                #endif
+                
                 Debug.Log($"[Unity AOP] Weaving {filePath}");
                 try
                 {
@@ -441,16 +576,17 @@ namespace ITnnovative.AOP.Processing.Editor
                     if (filePath.Contains("Mono.Cecil.Rocks.dll") ||
                         filePath.Contains("Mono.Cecil.dll") ||
                         filePath.Contains("Newtonsoft.Json.dll")) return;
-                    
-                    var assembly = AssemblyDefinition.ReadAssembly(filePath, new ReaderParameters { ReadWrite = true });
-                    
-                    
+
+                    var assembly = AssemblyDefinition.ReadAssembly(filePath, new ReaderParameters {ReadWrite = true});
+
+
                     WeaveAssembly(assembly);
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogWarning($"[Unity AOP] Failed to weave assembly '{filePath}': {ex.Message} \r\n{ex.StackTrace}");
-                    
+                    Debug.LogWarning(
+                        $"[Unity AOP] Failed to weave assembly '{filePath}': {ex.Message} \r\n{ex.StackTrace}");
+
                 }
             }
         }

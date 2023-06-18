@@ -23,9 +23,23 @@ namespace ITnnovative.AOP.Sample.Objects
         }
 
         [ColorChangeAspect(1, 0, 0, 1)]
-        public void SetRed(){}
+        public void SetRed(){} 
 
         [ColorChangeAspect(1, 1, 1, 1)]
         public void SetWhite(){}
+
+        [ColorChangeAspect(1, 1, 1, 1)]
+        public void SetColor(ref int r, ref int g, ref int b, ref int a)   
+        {
+            // Just for testing :D
+        }
+        
+        [ColorChangeAspect(1, 1, 1, 1)]
+        public void SetColor(out int r, out int g, out int b, out int a, bool q)  
+        {
+            // Just for testing :D
+            q = true;
+            r = g = b = a = 2;
+        }
     }
 }

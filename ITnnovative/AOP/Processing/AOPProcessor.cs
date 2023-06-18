@@ -289,12 +289,12 @@ namespace ITnnovative.AOP.Processing
             return arguments.returnValue;
         }
 
-        public static object OnMethodStart(object instance, Type type, string methodName, object[] args)
+        public static AspectReturnData OnMethodStart(object instance, Type type, string methodName, object[] args)
         {
             return null;
         }
         
-        public static object OnMethodComplete(object instance, Type type, string methodName, object[] args)
+        public static AspectReturnData OnMethodComplete(object instance, Type type, string methodName, object[] args)
         {
             return null;
         }
