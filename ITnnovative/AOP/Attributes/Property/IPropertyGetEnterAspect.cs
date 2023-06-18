@@ -5,7 +5,7 @@ namespace ITnnovative.AOP.Attributes.Property
     public interface IPropertyGetEnterAspect : IPropertyGetAspect
     {
 
-        void OnPropertyGetEnter(BaseExecutionArgs args);
+        void OnPropertyGetEnter(AspectExecutionArgs args);
 
     }
 }

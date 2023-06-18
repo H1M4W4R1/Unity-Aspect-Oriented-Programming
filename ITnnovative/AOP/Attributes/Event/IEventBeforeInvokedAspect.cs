@@ -4,6 +4,6 @@ namespace ITnnovative.AOP.Attributes.Event
 {
     public interface IEventBeforeInvokedAspect : IEventInvokedAspect
     {
-        void BeforeEventInvoked(BaseExecutionArgs args);
+        void BeforeEventInvoked(AspectExecutionArgs args);
     }
 }

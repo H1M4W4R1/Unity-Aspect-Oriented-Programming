@@ -8,7 +8,7 @@ namespace ITnnovative.AOP.Attributes.Method
         /// <summary>
         /// Invoked when the method is entered
         /// </summary>
-        void OnMethodEnter(BaseExecutionArgs args);
+        void OnMethodEnter(AspectExecutionArgs args);
 
     }
 }

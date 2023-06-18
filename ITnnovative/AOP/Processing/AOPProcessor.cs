@@ -32,7 +32,7 @@ namespace ITnnovative.AOP.Processing
                 aa.Add(new MethodArgument(pName, pValue));
             }
 
-            var arguments = new BaseExecutionArgs()
+            var arguments = new AspectExecutionArgs()
                 {source = instance, arguments = aa};
 
             var aspects = method.GetCustomAttributes(typeof(T), true);
@@ -69,9 +69,9 @@ namespace ITnnovative.AOP.Processing
             {
                 arguments = arguments.arguments.Select(q => q.value).ToArray(),
                 hasErrored = arguments.HasErrored,
-                returnValue = arguments.returnValue,
-                thrownException = arguments.exception,
-                hasReturned = arguments.hasReturned
+                returnValue = arguments.GetReturnValue(),
+                thrownException = arguments.GetException(),
+                hasReturned = arguments.HasReturned
             };
         }
 

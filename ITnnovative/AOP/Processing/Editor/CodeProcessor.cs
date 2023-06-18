@@ -80,6 +80,37 @@ namespace ITnnovative.AOP.Processing.Editor
                         
                     }
 
+                    for (var index = 0; index < type.Events.Count; index++)
+                    {
+                        var evt = type.Events[index];
+                        if (!HasAttributeOfType<AOPGeneratedAttribute>(evt))
+                        {
+                            // Register AOP Processor by encapsulating method
+                            if (HasAttributeOfType<IEventAspect>(evt))
+                            {
+                                MarkAsProcessed(module, evt);
+                                if (HasAttributeOfType<IEventAddedListenerAspect>(evt))
+                                {
+                                    WrapEncapsulateMethod(assembly, module, type, evt.AddMethod, evt.Name, 
+                                        nameof(AOPProcessor.OnEventAddListenerEnter), nameof(AOPProcessor.OnEventAddListenerExit));    
+                                }
+                                
+                                if (HasAttributeOfType<IEventRemovedListenerAspect>(evt))
+                                {
+                                    WrapEncapsulateMethod(assembly, module, type, evt.RemoveMethod, evt.Name, 
+                                        nameof(AOPProcessor.OnEventRemoveListenerEnter), nameof(AOPProcessor.OnEventRemoveListenerExit));
+                                }
+
+                                if (HasAttributeOfType<IEventInvokedAspect>(evt))
+                                {
+                                    EncapsulateEventExecution(assembly, module, type, evt);
+                                }
+                            }
+                        }
+
+                        
+                    }
+                    
                     // Process properties
                     for (var index = 0; index < type.Properties.Count; index++)
                     {
@@ -280,6 +311,94 @@ namespace ITnnovative.AOP.Processing.Editor
             return newMethodBody;
         }
 
+        public static void EncapsulateEventExecution(AssemblyDefinition assembly, ModuleDefinition module, 
+             TypeDefinition type, EventDefinition evt)
+        {
+            foreach (var method in type.Methods)
+            {
+                var body = method.Body;
+                for (var pos = body.Instructions.Count - 1; pos >= 0; pos--)
+                {
+                    var instr = body.Instructions[pos];
+                    if (instr.OpCode == OpCodes.Ldfld)
+                    {
+                        if (!HasAttributeOfType<IEventBeforeInvokedAspect>(evt)) continue;
+                        
+                        if (instr.Operand is FieldDefinition) 
+                        { 
+                            var opObj = (FieldDefinition) instr.Operand;
+                            if (method.Name.StartsWith("add_" + evt.Name) ||
+                                method.Name.StartsWith("remove_" + evt.Name)) continue; 
+                            
+                            if (opObj.Name == evt.Name)
+                            {
+                                var newMethodBody = new List<Instruction>();
+                                newMethodBody.Add(Instruction.Create(method.IsStatic ? OpCodes.Ldnull : OpCodes.Ldarg_0));
+                                newMethodBody.Add(Instruction.Create(OpCodes.Ldtoken, type));
+                                newMethodBody.Add(Instruction.Create(OpCodes.Call, typeof(Type).GetMonoMethod(module, 
+                                    nameof(Type.GetTypeFromHandle))));
+                                newMethodBody.Add(Instruction.Create(OpCodes.Ldstr, evt.Name));
+ 
+                                if(module.HasType(typeof(AOPProcessor))){
+                                    newMethodBody.Add(Instruction.Create(OpCodes.Call,
+                                        module.GetType(typeof(AOPProcessor))
+                                            .GetMethod(nameof(AOPProcessor.OnEventInvokeEnter))));
+                                }
+                                else 
+                                {
+                                    newMethodBody.Add(Instruction.Create(OpCodes.Call, typeof(AOPProcessor).GetMonoMethod(module, 
+                                        nameof(AOPProcessor.OnEventInvokeEnter))));
+                                }
+
+                                var index = method.Body.Instructions.IndexOf(instr) - 1;
+                                foreach (var i in newMethodBody)
+                                {  
+                                    index++;
+                                    method.Body.Instructions.Insert(index, i);
+                                }
+                            }
+                        } 
+                    }
+                    else if (instr.OpCode == OpCodes.Callvirt)
+                    {
+                        if (!HasAttributeOfType<IEventAfterInvokedAspect>(evt)) continue;
+                        
+                        //evt.
+                        var operand = instr.Operand as MethodReference;
+                        if(operand == null) throw new Exception("[Unity AOP] Unknown error, please report with source code.");
+                        
+                        var opName = operand?.DeclaringType.FullName;
+                        if (opName == evt.EventType.FullName)
+                        {
+                            var newMethodBody = new List<Instruction>();
+                            newMethodBody.Add(Instruction.Create(method.IsStatic ? OpCodes.Ldnull : OpCodes.Ldarg_0));
+                            newMethodBody.Add(Instruction.Create(OpCodes.Ldtoken, type));
+                            newMethodBody.Add(Instruction.Create(OpCodes.Call, typeof(Type).GetMonoMethod(module, 
+                                nameof(Type.GetTypeFromHandle))));
+                            newMethodBody.Add(Instruction.Create(OpCodes.Ldstr, evt.Name)); 
+
+                            if(module.HasType(typeof(AOPProcessor))){
+                                newMethodBody.Add(Instruction.Create(OpCodes.Call,
+                                    module.GetType(typeof(AOPProcessor))
+                                        .GetMethod(nameof(AOPProcessor.OnEventInvokeExit))));
+                            }
+                            else 
+                            {
+                                newMethodBody.Add(Instruction.Create(OpCodes.Call, typeof(AOPProcessor).GetMonoMethod(module, 
+                                    nameof(AOPProcessor.OnEventInvokeExit))));
+                            }
+
+                            var index = method.Body.Instructions.IndexOf(instr);
+                            foreach (var i in newMethodBody)
+                            {  
+                                index++;
+                                method.Body.Instructions.Insert(index, i);
+                            }
+                        }
+                    }
+                }
+            }
+        }
         private static FieldDefinition GetField(TypeDefinition qType, string fName)
         {
             return qType.Fields.FirstOrDefault(f => f.Name == fName);
@@ -309,6 +428,9 @@ namespace ITnnovative.AOP.Processing.Editor
 
             // Create new body
             newMethodBody.AddRange(startInstructions);
+           
+            // TODO: Implement Try-Catch
+            
             var iCount = method.Body.Instructions.Count;
             for (var index = 0; index < iCount; index++)
             {
@@ -364,7 +486,7 @@ namespace ITnnovative.AOP.Processing.Editor
                 // If does not return append instruction
                 newMethodBody.Add(instr0);
             }
- 
+
             // Create variable at first spot
             var tempVar = new VariableDefinition(GetOrImportType(module, typeof(AspectData)));
             method.Body.Variables.Insert(0, tempVar);

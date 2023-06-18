@@ -7,7 +7,7 @@ namespace ITnnovative.AOP.Attributes.Event
     public interface IEventExceptionThrownAspect
     {
 
-        void OnExceptionThrown(Exception exception, BaseExecutionArgs args);
+        void OnExceptionThrown(Exception exception, AspectExecutionArgs args);
 
     }
 }

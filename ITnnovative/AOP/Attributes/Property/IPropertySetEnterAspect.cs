@@ -4,6 +4,6 @@ namespace ITnnovative.AOP.Attributes.Property
 {
     public interface IPropertySetEnterAspect : IPropertySetAspect
     {
-        void OnPropertySetEnter(BaseExecutionArgs args);
+        void OnPropertySetEnter(AspectExecutionArgs args);
     }
 }

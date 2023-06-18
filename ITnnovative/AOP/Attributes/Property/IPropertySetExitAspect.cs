@@ -4,6 +4,6 @@ namespace ITnnovative.AOP.Attributes.Property
 {
     public interface IPropertySetExitAspect : IPropertySetAspect
     {
-        void OnPropertySetExit(BaseExecutionArgs args);
+        void OnPropertySetExit(AspectExecutionArgs args);
     }
 }
