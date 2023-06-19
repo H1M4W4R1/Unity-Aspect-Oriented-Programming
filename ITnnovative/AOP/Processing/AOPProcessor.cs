@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Reflection;
 using ITnnovative.AOP.Attributes.Event;
 using ITnnovative.AOP.Attributes.Exceptions;
 using ITnnovative.AOP.Attributes.Method;
 using ITnnovative.AOP.Attributes.Property;
 using ITnnovative.AOP.Processing.Execution;
-using ITnnovative.AOP.Processing.Execution.Arguments;
-using UnityEngine;
 
 namespace ITnnovative.AOP.Processing
 {
@@ -16,28 +13,63 @@ namespace ITnnovative.AOP.Processing
     /// </summary>
     public static class AOPProcessor
     {
+        private const BindingFlags B_FLAGS = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
+        | BindingFlags.Static;
+        
         public static void OnT<T>(object instance, AspectData data, Type type, string methodName, object[] args)
         {
             data.SetSource(instance);
-            var wasOk = data.HasErrored;
-            
-            var method = type.GetMethod(methodName);
-            if (method == null) throw new Exception("We don't know what went wrong... But we know that it went terribly wrong.");
 
-            // Parse parameters
-            var mParam = method.GetParameters();
-
-            // Generate arguments for execution args
-            for (var index = 0; index < args.Length; index++)
+            var mInfo = null as MemberInfo;
+            var method = type.GetMethod(methodName, B_FLAGS);
+            if (method == null)
             {
-                var pValue = args[index];
-                var pName = mParam[index].Name;
-                
-                // Register argument or update value
-                data.SetArgument(index, pName, pValue);
+                var property = type.GetProperty(methodName, B_FLAGS);
+                if (property != null)
+                {
+                    mInfo = property;
+                    if (typeof(IPropertyGetAspect).IsAssignableFrom(typeof(T)))
+                        method = property.GetMethod;
+                    else if (typeof(IPropertySetAspect).IsAssignableFrom(typeof(T)))
+                        method = property.SetMethod;
+                }
+                else
+                {
+                    var evt = type.GetEvent(methodName, B_FLAGS);
+                    if (evt != null)
+                    {
+                        mInfo = evt;
+                        if (typeof(IEventAddedListenerAspect).IsAssignableFrom(typeof(T)))
+                            method = evt.AddMethod;
+                        else if (typeof(IEventRemovedListenerAspect).IsAssignableFrom(typeof(T)))
+                            method = evt.RemoveMethod;
+                    }
+                }
+            }
+            else
+            {
+                mInfo = method;
             }
             
-            var aspects = method.GetCustomAttributes(typeof(T), true);
+            if (mInfo == null) throw new Exception("Something went really wrong!");
+
+            // Parse parameters
+            if (method != null)
+            {
+                var mParam = method.GetParameters();
+
+                // Generate arguments for execution args
+                for (var index = 0; index < args.Length; index++)
+                {
+                    var pValue = args[index];
+                    var pName = mParam[index].Name;
+
+                    // Register argument or update value
+                    data.SetArgument(index, pName, pValue);
+                }
+            }
+
+            var aspects = mInfo.GetCustomAttributes(typeof(T), true);
             foreach (var aspect in aspects)
             {
                 // A nice tree of available aspect bases ;)
@@ -66,19 +98,6 @@ namespace ITnnovative.AOP.Processing
                     ((ICatchExceptionEnterAspect) aspect).ExceptionCatchBegan(data);
                 if (typeof(ICatchExceptionExitAspect).IsAssignableFrom(typeof(T)))
                     ((ICatchExceptionExitAspect) aspect).ExceptionCatchEnded(data);
-            }
-
-            if (data.HasErrored && data.HasErrored != wasOk)
-            {
-                // Exceptions cannot be thrown by exception handling aspect (infinite loop)
-                if (typeof(ICatchExceptionEnterAspect).IsAssignableFrom(typeof(T)))
-                    return;
-                if (typeof(ICatchExceptionExitAspect).IsAssignableFrom(typeof(T)))
-                    return;
-                
-                data.SetException(ExceptionSource.Aspect, data.GetException());
-                OnT<ICatchExceptionEnterAspect>(instance, data, type, methodName, args);
-                OnT<ICatchExceptionExitAspect>(instance, data, type, methodName, args);
             }
         }
 

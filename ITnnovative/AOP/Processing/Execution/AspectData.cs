@@ -96,7 +96,18 @@ namespace ITnnovative.AOP.Processing.Execution
         /// <summary>
         /// Exception to throw by aspect`ed method
         /// </summary>
-        public Exception GetException() => null;
+        public Exception GetException() => _exception;
+        
+        /// <summary>
+        /// Register new exception
+        /// </summary>
+        public void SetExceptionThrow(ExceptionSource source, Exception exception)
+        {
+            SetException(source, exception);
+            
+            // If should throw this exception
+            HasErrored = true;
+        }
 
         /// <summary>
         /// Register new exception
@@ -108,6 +119,7 @@ namespace ITnnovative.AOP.Processing.Execution
             
             // Register exception in stack
             Exceptions.Add(new ThrownException(source, exception));
+
         }
 
         /// <summary>

@@ -1,12 +1,16 @@
 using System;
 using ITnnovative.AOP.Sample.Aspects;
+using ITnnovative.AOP.Sample.Aspects.Validation;
 using UnityEngine;
 
 namespace ITnnovative.AOP.Sample.Objects 
 {
-    public class ColorChange : MonoBehaviour
+    public class ColorChange : MonoBehaviour 
     {
-        private int _counter = 0;  
+        private int _counter = 0; 
+        
+        [UpperCaseOnly] 
+        private string Property { get;  set; }
  
         public void OnMouseDown() 
         { 
@@ -24,7 +28,7 @@ namespace ITnnovative.AOP.Sample.Objects
 
         [ColorChangeAspect(1, 0, 0, 1)]
         public void SetRed()   
-        {  
+        {     
         }        
 
         [ColorChangeAspect(1, 1, 1, 1)]
@@ -34,6 +38,18 @@ namespace ITnnovative.AOP.Sample.Objects
         public void SetColor(int r, int g, int b, int a)   
         {
             // Just for testing :D
+        }
+
+        [ContextMenu("A")] 
+        public void TextA()
+        {
+            Property = "HELLO OK";
+        }
+
+        [ContextMenu("B")]
+        public void TextB()
+        {
+            Property = "HELLO Ok";
         }
     }
 }

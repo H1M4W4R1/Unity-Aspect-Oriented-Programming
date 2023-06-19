@@ -92,7 +92,7 @@ namespace ITnnovative.AOP.Processing.Editor
                                 MarkAsProcessed(module, evt);
                                 if (HasAttributeOfType<IEventAddedListenerAspect>(evt))
                                 {
-                                    WrapEncapsulateMethod(assembly, module, type, evt.AddMethod, evt.Name, 
+                                    WrapEncapsulateMethod(assembly, module, type, evt.AddMethod,evt.Name, 
                                         nameof(AOPProcessor.OnEventAddListenerEnter), nameof(AOPProcessor.OnEventAddListenerExit));    
                                 }
                                 
@@ -439,6 +439,7 @@ namespace ITnnovative.AOP.Processing.Editor
             var setExceptionSource = GetMethod(adr, nameof(AspectData.SetException));
             
             // End try closure
+            //if(newMethodBody.Last().OpCode != OpCodes.Ret)
             newMethodBody.Add(tryLeave);
             newMethodBody.Add(handlerNop);
             newMethodBody.Add(Instruction.Create(OpCodes.Stloc_1));
@@ -447,8 +448,8 @@ namespace ITnnovative.AOP.Processing.Editor
             newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_1)); // Stash exception
             newMethodBody.Add(Instruction.Create(OpCodes.Callvirt, setExceptionSource));
             
-            newMethodBody.AddRange(CreateAOPInjectableInstructions(assembly, module, type, method, null, nameof(AOPProcessor.OnCatchExceptionEnterAspect)));
-            newMethodBody.AddRange(CreateAOPInjectableInstructions(assembly, module, type, method, null, nameof(AOPProcessor.OnCatchExceptionExitAspect)));
+            newMethodBody.AddRange(CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, nameof(AOPProcessor.OnCatchExceptionEnterAspect)));
+            newMethodBody.AddRange(CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, nameof(AOPProcessor.OnCatchExceptionExitAspect)));
             newMethodBody.Add(catchLeave);
             newMethodBody.Add(finishNop);
             newMethodBody.Add(Instruction.Create(OpCodes.Ret));
