@@ -11,8 +11,22 @@ namespace ITnnovative.AOP.Sample.Objects
         
         [UpperCaseOnly] 
         private string Property { get;  set; }
+
+        [ContextMenu("EAI")]
+        [ColorChangeAspect(1, 0, 0, 1)]
+        public int ExampleAspectInt()     
+        { 
+            return 32;
+        }
  
-        public void OnMouseDown() 
+        [ContextMenu("EAO")]
+        [ColorChangeAspect(1, 0, 0, 1)]
+        public object ExampleAspectObject()
+        {
+            return new object();
+        }
+                   
+        public void OnMouseDown()  
         { 
             if (_counter == 0)
             {  

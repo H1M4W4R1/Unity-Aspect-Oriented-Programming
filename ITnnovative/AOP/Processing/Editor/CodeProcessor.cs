@@ -293,8 +293,8 @@ namespace ITnnovative.AOP.Processing.Editor
                 newMethodBody.Add(method.ReturnType.IsValueType
                     ? Instruction.Create(OpCodes.Unbox_Any, method.ReturnType)
                     : Instruction.Create(OpCodes.Castclass, method.ReturnType));
-                newMethodBody.Add(Instruction.Create(OpCodes.Pop));
             }
+            
             newMethodBody.Add(Instruction.Create(OpCodes.Ret));
             
             newMethodBody.Add(gamma);
@@ -343,12 +343,50 @@ namespace ITnnovative.AOP.Processing.Editor
             TypeDefinition type, MethodDefinition method, string overrideName = null, string startMethod = nameof(AOPProcessor.OnMethodStart),
             string completeMethod = nameof(AOPProcessor.OnMethodComplete))
         {
+            // Compute for default()
+            var isVoidMethod = method.ReturnType == module.TypeSystem.Void;
+            var opShift = isVoidMethod ? 2 : 3;
+            
+            // Load AspectData definitions
             var aData = GetOrImportType(module, typeof(AspectData));
             var aDataCtor = aData.GetConstructors().FirstOrDefault();
 
+            // Start constructing method override
             var newMethodBody = new List<Instruction>();
             var startInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, startMethod);
             var endInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, completeMethod);
+
+            // If return type is not void then prepare default value for returning
+            if (!isVoidMethod)
+            {
+                if (method.ReturnType == module.TypeSystem.Object ||
+                    method.ReturnType == module.TypeSystem.Object)
+                {
+                    newMethodBody.Add(Instruction.Create(OpCodes.Ldnull));
+                    newMethodBody.Add(Instruction.Create(OpCodes.Stloc_2));
+                }
+                else
+                {
+                    if(method.ReturnType == module.TypeSystem.UInt64 ||
+                       method.ReturnType == module.TypeSystem.Int64)
+                        newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I8, 0));
+                    else if(method.ReturnType == module.TypeSystem.Double)
+                        newMethodBody.Add(Instruction.Create(OpCodes.Ldc_R8, 0d));
+                    else if(method.ReturnType == module.TypeSystem.Single)
+                        newMethodBody.Add(Instruction.Create(OpCodes.Ldc_R4, 0f));
+                    else if (method.ReturnType == module.TypeSystem.IntPtr ||
+                             method.ReturnType == module.TypeSystem.UIntPtr)
+                    {
+                        newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, 0));
+                        newMethodBody.Add(Instruction.Create(OpCodes.Conv_I));
+                    }
+                    else
+                    {
+                        newMethodBody.Add(Instruction.Create(OpCodes.Ldc_I4, 0));
+                    }
+                    newMethodBody.Add(Instruction.Create(OpCodes.Stloc_2));
+                }
+            }
 
             var instructionZero = Instruction.Create(OpCodes.Nop);
             
@@ -384,62 +422,61 @@ namespace ITnnovative.AOP.Processing.Editor
                 // Get instruction
                 var instr0 = method.Body.Instructions[index];
 
-                // Check if returns value
-                if (method.ReturnType.IsValueType)
+                // If returns
+                if (instr0.OpCode == OpCodes.Ret)
                 {
-                    // If struct return value method will return
-                    if (instr0.OpCode == OpCodes.Unbox_Any)
+                    // Add end method callback and append instruction
+                    if (newMethodBody[^1].OpCode == OpCodes.Unbox_Any)
                     {
-                        // If can have ret
-                        if (index + 1 < iCount)
-                        {
-                            // Get next instruction
-                            var instr1 = method.Body.Instructions[index + 1];
-                            
-                            // If instruction is return
-                            if (instr1.OpCode == OpCodes.Ret)
-                            {
-                                // Add end method callback and append instructions
-                                newMethodBody.AddRange(endInstructions);
-                                newMethodBody.Add(instr0);
-                                newMethodBody.Add(instr1);
-                                index++; // Skip one instruction
-                                continue;
-                            }
-                        }
-                    }
-                }
-                else // If object-return function
-                {
-                    // If returns
-                    if (instr0.OpCode == OpCodes.Ret)
-                    {
-                        // Add end method callback and append instruction
+                        // Copy and delete old instructions
+                        var iCopy = newMethodBody[^1];
+                        newMethodBody.RemoveAt(newMethodBody.Count - 1);
+
                         newMethodBody.AddRange(endInstructions);
-                        newMethodBody.Add(instr0);
-                        continue;
+                        newMethodBody.Add(iCopy);
                     }
+                    else
+                    {
+                        newMethodBody.AddRange(endInstructions);
+                    }
+
+                    newMethodBody.Add(instr0);
+                    continue;
                 }
 
                 // Shift locals
                 if (instr0.OpCode == OpCodes.Stloc)
-                {
-                    instr0 = Instruction.Create(OpCodes.Stloc, ((int) instr0.Operand) + 2);
-                }
+                    instr0 = CreateStLocInstruction(((int) instr0.Operand) + opShift);
                 else if (instr0.OpCode == OpCodes.Ldloc)
-                {
-                    instr0 = Instruction.Create(OpCodes.Stloc, ((int) instr0.Operand) + 2);
-                }
-                
+                    instr0 = CreateLdLocInstruction(((int) instr0.Operand) + opShift);
+                else if (instr0.OpCode == OpCodes.Stloc_0)
+                    instr0 = CreateStLocInstruction(opShift);
+                else if (instr0.OpCode == OpCodes.Stloc_1)
+                    instr0 = CreateStLocInstruction(opShift + 1);
+                else if (instr0.OpCode == OpCodes.Stloc_2)
+                    instr0 = CreateStLocInstruction(opShift + 2);
+                else if (instr0.OpCode == OpCodes.Stloc_3)
+                    instr0 = CreateStLocInstruction(opShift + 3);
+                else if (instr0.OpCode == OpCodes.Ldloc_0)
+                    instr0 = CreateLdLocInstruction(opShift);
+                else if (instr0.OpCode == OpCodes.Ldloc_1)
+                    instr0 = CreateLdLocInstruction(opShift + 1);
+                else if (instr0.OpCode == OpCodes.Ldloc_2)
+                    instr0 = CreateLdLocInstruction(opShift + 2);
+                else if (instr0.OpCode == OpCodes.Ldloc_3)
+                    instr0 = CreateLdLocInstruction(opShift + 3);
+
+                if (instr0.OpCode == OpCodes.Br_S)
+                    continue;
+
                 // If does not return append instruction
                 newMethodBody.Add(instr0);
             }
-            
+
             var adr = GetOrImportType(module, typeof(AspectData));
             var setExceptionSource = GetMethod(adr, nameof(AspectData.SetException));
             
             // End try closure
-            //if(newMethodBody.Last().OpCode != OpCodes.Ret)
             newMethodBody.Add(tryLeave);
             newMethodBody.Add(handlerNop);
             newMethodBody.Add(Instruction.Create(OpCodes.Stloc_1));
@@ -452,22 +489,32 @@ namespace ITnnovative.AOP.Processing.Editor
             newMethodBody.AddRange(CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, nameof(AOPProcessor.OnCatchExceptionExitAspect)));
             newMethodBody.Add(catchLeave);
             newMethodBody.Add(finishNop);
-            newMethodBody.Add(Instruction.Create(OpCodes.Ret));
-           
             
-            // TODO: RET
+            if (!isVoidMethod)
+            {
+                newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_2));
+            }
+            
+            //newMethodBody.Add(Instruction.Create(OpCodes.Throw));
+            newMethodBody.Add(Instruction.Create(OpCodes.Ret));
 
             // Create variable at first spot
             var tempVar = new VariableDefinition(aData);
             method.Body.Variables.Insert(0, tempVar);
             method.Body.Variables.Insert(1, new VariableDefinition(module.ImportReference(typeof(Exception))));
             
+            if(!isVoidMethod)
+                method.Body.Variables.Insert(2, new VariableDefinition(method.ReturnType));
+            
             // Register exception handlers
             method.Body.ExceptionHandlers.Add(handler);
             
             // Update body
             method.Body.Instructions.Clear();
-            method.Body.Instructions.AddRange(newMethodBody);
+            
+            // Register instructions
+            foreach (var i in newMethodBody)
+                method.Body.Instructions.Add(i);
             newMethodBody.Clear();
         }
         
@@ -492,6 +539,40 @@ namespace ITnnovative.AOP.Processing.Editor
             }
         }
 
+        public static Instruction CreateStLocInstruction(int fi)
+        {
+            switch (fi)
+            {
+                case 0:
+                    return Instruction.Create(OpCodes.Stloc_0);
+                case 1:
+                    return Instruction.Create(OpCodes.Stloc_1);
+                case 2:
+                    return Instruction.Create(OpCodes.Stloc_2);
+                case 3:
+                    return Instruction.Create(OpCodes.Stloc_3);
+            }
+            
+            return Instruction.Create(OpCodes.Stloc, fi);
+        }
+        
+        public static Instruction CreateLdLocInstruction(int fi)
+        {
+            switch (fi)
+            {
+                case 0:
+                    return Instruction.Create(OpCodes.Ldloc_0);
+                case 1:
+                    return Instruction.Create(OpCodes.Ldloc_1);
+                case 2:
+                    return Instruction.Create(OpCodes.Ldloc_2);
+                case 3:
+                    return Instruction.Create(OpCodes.Ldloc_3);
+            }
+            
+            return Instruction.Create(OpCodes.Stloc, fi);
+        }
+        
         /// <summary>
         /// Weave all assemblies available at specified path
         /// </summary>
