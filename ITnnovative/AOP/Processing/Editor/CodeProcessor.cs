@@ -135,9 +135,10 @@ namespace ITnnovative.AOP.Processing.Editor
             }
         }
 
-        public static List<Instruction> CreateAOPInjectableInstructions(AssemblyDefinition assembly, ModuleDefinition module,
+        public static List<Instruction> CreateAOPInjectableInstructions(AssemblyDefinition assembly,
+            ModuleDefinition module,
             TypeDefinition type, MethodDefinition method, string overrideName = null, string overrideMethod =
-            nameof(AOPProcessor.OnMethodStart))
+                nameof(AOPProcessor.OnMethodStart), bool endInstr = false)
         {
             var adr = GetOrImportType(module, typeof(AspectData));
             
@@ -288,6 +289,10 @@ namespace ITnnovative.AOP.Processing.Editor
             // Sanity check if method returns a value, otherwise puts regular ret command
             if (method.ReturnType != module.TypeSystem.Void)
             {
+                // If are end instructions then stash method return stack value to memory
+                if(endInstr)
+                    newMethodBody.Add(Instruction.Create(OpCodes.Stloc_2));
+                
                 newMethodBody.Add(Instruction.Create(OpCodes.Ldloc_0));
                 newMethodBody.Add(Instruction.Create(OpCodes.Callvirt, returnedValue));
                 newMethodBody.Add(method.ReturnType.IsValueType
@@ -354,7 +359,7 @@ namespace ITnnovative.AOP.Processing.Editor
             // Start constructing method override
             var newMethodBody = new List<Instruction>();
             var startInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, startMethod);
-            var endInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, completeMethod);
+            var endInstructions = CreateAOPInjectableInstructions(assembly, module, type, method, overrideName, completeMethod, true);
 
             // If return type is not void then prepare default value for returning
             if (!isVoidMethod)
