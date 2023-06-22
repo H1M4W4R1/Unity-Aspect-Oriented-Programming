@@ -1,15 +1,18 @@
-﻿using ITnnovative.AOP.Sample.Testing.Enums;
+﻿using ITnnovative.AOP.Testing.Enums;
+using ITnnovative.AOP.Testing.Framework.Attributes;
 using UnityEngine.Assertions;
 
-namespace ITnnovative.AOP.Sample.Testing.Objects
+namespace ITnnovative.AOP.Testing.Objects
 {
-    public class ReturnValueTests : TestScript
+    public class ReturnValueTests
     {
+        [Test]
         public static void OverrideReturnValueEnterTest()
         {
             Assert.IsTrue(_OverrideReturnValueEnterTest());
         }
  
+        [Test]
         public static void OverrideReturnValueExitTest()
         {
             Assert.IsTrue(_OverrideReturnValueExitTest());
@@ -27,15 +30,5 @@ namespace ITnnovative.AOP.Sample.Testing.Objects
             return false;
         }
 
-        public static void Run()
-        {
-            new ReturnValueTests().RunTests();
-        }
-
-        public override void RunTests()
-        {
-            OverrideReturnValueEnterTest();
-            OverrideReturnValueExitTest();
-        }
     }
 }

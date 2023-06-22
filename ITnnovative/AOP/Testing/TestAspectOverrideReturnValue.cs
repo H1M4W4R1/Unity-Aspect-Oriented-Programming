@@ -1,9 +1,9 @@
 ﻿using System;
 using ITnnovative.AOP.Attributes.Method;
 using ITnnovative.AOP.Processing.Execution;
-using ITnnovative.AOP.Sample.Testing.Enums;
+using ITnnovative.AOP.Testing.Enums;
 
-namespace ITnnovative.AOP.Sample.Testing
+namespace ITnnovative.AOP.Testing
 {
     public class TestAspectOverrideReturnValue : Attribute, IMethodBoundaryAspect
     {

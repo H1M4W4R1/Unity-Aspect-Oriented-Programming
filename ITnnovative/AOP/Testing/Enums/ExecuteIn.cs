@@ -1,4 +1,4 @@
-﻿namespace ITnnovative.AOP.Sample.Testing.Enums
+﻿namespace ITnnovative.AOP.Testing.Enums
 {
     public enum ExecuteIn
     {
