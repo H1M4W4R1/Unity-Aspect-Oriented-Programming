@@ -22,6 +22,7 @@ namespace ITnnovative.AOP.Processing
         public static void BeforeEventInvoked(object instance, Type type, string eventName)
         {
             var arguments = new EventExecutionArguments();
+            arguments.source = instance;
             var evt = type?.GetEvent(eventName);
             arguments.executionType = EventExecutionType.Invoke;
             arguments.eventObject = evt;
@@ -38,6 +39,7 @@ namespace ITnnovative.AOP.Processing
         public static void AfterEventInvoked(object instance, Type type, string eventName)
         {
             var arguments = new EventExecutionArguments();
+            arguments.source = instance;
             var evt = type?.GetEvent(eventName);
             arguments.executionType = EventExecutionType.Invoke;
             arguments.eventObject = evt;
@@ -54,6 +56,7 @@ namespace ITnnovative.AOP.Processing
         public static object OnEventListenerAdded(object instance, Type type, string eventName, object[] args)
         {
             var arguments = new EventExecutionArguments();
+            arguments.source = instance;
             var evt = type?.GetEvent(eventName);
             arguments.executionType = EventExecutionType.AddListener;
             arguments.eventObject = evt;
@@ -113,6 +116,7 @@ namespace ITnnovative.AOP.Processing
         public static object OnEventListenerRemoved(object instance, Type type, string eventName, object[] args)
         {
             var arguments = new EventExecutionArguments();
+            arguments.source = instance;
             var evt = type?.GetEvent(eventName);
             arguments.executionType = EventExecutionType.RemoveListener;
             arguments.eventObject = evt;
@@ -171,6 +175,7 @@ namespace ITnnovative.AOP.Processing
         public static object OnPropertyGet(object instance, Type type, string propertyName, object[] args)
         { 
             var arguments = new PropertyExecutionArguments();
+            arguments.source = instance;
             arguments.isSetArguments = false;
             var property = type?.GetProperty(propertyName);
             arguments.property = property;
@@ -228,6 +233,7 @@ namespace ITnnovative.AOP.Processing
         public static object OnPropertySet(object instance, Type type, string propertyName, object[] args)
         {
             var arguments = new PropertyExecutionArguments();
+            arguments.source = instance;
             arguments.isSetArguments = false;
             var property = type?.GetProperty(propertyName);
             arguments.property = property;
@@ -287,6 +293,7 @@ namespace ITnnovative.AOP.Processing
         {
             // Create arguments for aspects
             var arguments = new MethodExecutionArguments();
+            arguments.source = instance;
 
             // Get types for args
             var typeArray = new List<Type>();

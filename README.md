@@ -89,4 +89,5 @@ Yes, just implement all interfaces you desire :)
 It's MIT licensed. Feel free to commit updated versions into Git. Feel free to send me a link, so I could implement your upgrades too.
 
 ## Wall of Fame
-[494311870](https://github.com/494311870) - build compatibility (including Android), because I was too lazy to fix this...
+[494311870](https://github.com/494311870) - build compatibility (including Android), because I was too lazy to fix this... <br/><br/>
+[blazejhanzel](https://github.com/blazejhanzel) - multi-DLL weaving implementation

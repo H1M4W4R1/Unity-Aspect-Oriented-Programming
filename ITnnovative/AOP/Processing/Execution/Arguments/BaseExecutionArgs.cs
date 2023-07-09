@@ -7,6 +7,11 @@ namespace ITnnovative.AOP.Processing.Execution.Arguments
     public class BaseExecutionArgs
     {
         /// <summary>
+        /// Source object of this call (null if method is static)
+        /// </summary>
+        public object source;
+        
+        /// <summary>
         /// Adds variable to arguments
         /// </summary>
         public void AddVariable(string name, object value)

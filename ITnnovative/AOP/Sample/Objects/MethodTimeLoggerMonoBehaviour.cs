@@ -16,7 +16,13 @@ namespace ITnnovative.AOP.Sample.Objects
         [MethodTimeLogger]
         public void Start()
         {
+            Debug.Log("Hello there!"); 
             Thread.Sleep(10);
+            TestMethod();
+        }
+
+        public void OnMouseDown()
+        {
             TestMethod();
         }
 
@@ -24,6 +30,7 @@ namespace ITnnovative.AOP.Sample.Objects
         [ContextMenu("TestMethod")]
         public void TestMethod()
         {
+            Debug.Log("Sleeping for 50ms"); 
             Thread.Sleep(50);
             TestMethod(100);
         } 
