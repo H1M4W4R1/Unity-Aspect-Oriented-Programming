@@ -110,7 +110,8 @@ namespace ITnnovative.AOP.Processing.Editor
                 }
             }
             
-            assembly.Write();			
+            var writerParameters = new WriterParameters { WriteSymbols = true };
+            assembly.Write(writerParameters);			
             assembly.Dispose();
         }
 
